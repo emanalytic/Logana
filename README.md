@@ -1,115 +1,130 @@
 # logana
 
-**A streaming log analyzer for messy real-world files.**
+**A streaming log analyzer for a single text log file.**
 
-Point it at one log file. It reads the file line by line (it does **not** load the whole file into memory), figures out mixed formats on the fly, and prints error rates, latency percentiles, top endpoints, error clusters, and quarantine reasons.
+You point logana at one file on disk. It reads the file line by line without loading the whole file into memory, groups related lines (for example stack traces or multi-line JSON), extracts structured fields where possible, and prints a report: how many lines were understood, how many were rejected, error rates over time, latency percentiles when response times are present, busy endpoints or activities, and grouped error messages.
 
-**Design diagrams:** [Architecture](#architecture) (end-to-end flow + layers).
-**Grading / Q&A:** see **[ANSWERS.md](ANSWERS.md)** for stack choices, edge cases, and AI usage notes.
+This project is aimed at the same kind of task you might do with `grep`, `tail`, and `awk`, but with consistent field extraction and rolling statistics instead of ad-hoc one-off commands.
 
+**Further reading:** [Architecture](#architecture) · [Evaluation on real logs](#evaluation-on-real-logs) · [ANSWERS.md](ANSWERS.md) (design choices, edge cases, grading notes)
 
 ---
 
 ## What you get
 
-| Output | Best for |
-|--------|----------|
-| **summary** (default) | Plain-text report in the terminal |
-| **json** | Scripts, CI, or saving `report.json` |
-| **dashboard** | Live Rich terminal UI while the file is processed |
+After processing a file, you can choose one of three output modes:
 
-**Metrics include:** parse success vs quarantine rate, error rate over time (with spike detection), p50/p95/p99 latency, per-endpoint volume and errors, repeating error patterns (clustered), format drift when the log style changes mid-file, and field-level parse quality.
+| Mode | Description |
+|------|-------------|
+| **summary** (default) | A readable text report in the terminal |
+| **json** | Structured output for scripts, CI, or saving to `report.json` |
+| **dashboard** | A live terminal UI (requires the `rich` library) while the file is still being read |
 
-**Try it on real logs:** `tests/fixtures/OpenStack_2k.log` (LogHub nova API — 0% quarantine in our evaluation).
+The report can include:
 
+- **Parse outcomes** — how many logical records were accepted versus sent to quarantine (rejected with a reason)
+- **Error rate** — share of accepted lines classified as errors, plus spike detection relative to the rest of the file
+- **Latency** — approximate p50, p95, and p99 response times when the log contains duration or `time:` fields
+- **Endpoints / activities** — which URL paths or message patterns appear most often
+- **Error clusters** — similar error lines grouped so repeated failures are easier to see
+- **Format drift** — when the dominant line shape changes partway through the file
+- **Field quality** — how confidently timestamps, status codes, and other fields were parsed
+
+A good first run on included data:
+
+```bash
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
+```
+
+That OpenStack sample is a strong match for this tool: timestamps, HTTP-style paths, status codes, and over a thousand latency samples in one pass.
 
 ---
 
 ## Evaluation on real logs
 
-All test fixtures are **real** [LogHub](https://github.com/logpai/loghub) samples. Full parse rates, error detection, per-system verdicts, and known gaps are documented here:
+All fixtures under `tests/fixtures/` are real samples from the public [LogHub](https://github.com/logpai/loghub) dataset (2,000 lines per system). They are used to measure how well logana generalizes—not as a list of files that each need their own parser.
 
-**[tests/fixtures/LOGHUB.md](tests/fixtures/LOGHUB.md)** — benchmark table, per-file analysis, recommended CLI flags.
+Full results, per-file notes, and reproduction commands are in **[tests/fixtures/LOGHUB.md](tests/fixtures/LOGHUB.md)**.
 
-Quick reproduce:
+Quick reproduction:
 
 ```bash
 poetry run python scripts/benchmarkFixtures.py
 poetry run pytest -q tests/integration/testLoghubCorpus.py
 ```
 
-**Headline results:** **In scope** for OpenStack, Apache, Linux, OpenSSH (and mostly Hadoop). **Out of scope** for Spark, Proxifier, and HealthApp — we document that honestly instead of adding a parser per LogHub file. See [LOGHUB.md](tests/fixtures/LOGHUB.md) for why.
+On the current codebase, OpenStack, Apache, Linux, OpenSSH, Hadoop, and HDFS are **strong fits** (0% quarantine under default settings). Spark and Proxifier are **partial** fits (lines are accepted, but not every field or calendar year is trustworthy). HealthApp is **mixed** (~21% quarantine on lines without a parseable timestamp). See LOGHUB.md for the full table and what each label means.
 
 ---
 
-## Where the design came from
+## What problem this solves (and what it does not)
 
-logana is **not** a mini Splunk or ELK. Those systems solve search at scale across many hosts. This project solves **one file, one pass, bounded RAM** closer to what you do with `grep`, `awk`, and `tail`, but with structure-aware parsing and rolling stats.
+logana is **not** a log search platform like Splunk or the Elastic stack. Those systems index many hosts and support interactive search at scale. logana solves a narrower problem: **one file, one sequential pass, bounded memory**, with immediate summary statistics.
 
-| Inspiration | How it shows up here |
-|-------------|----------------------|
-| **Ops habit: read the file once** | Streaming pipeline: read → group lines → parse → gate → update metrics → print. No database, no upload UI. |
-| **Apache / nginx access logs (CLF)** | Dedicated CLF parser plus shared HTTP field extractors (method, path, status, response time). |
-| **Syslog and key=value lines** | Syslog and logfmt-style parsers; timezone and “missing year” handling for older logs. |
-| **JSON log lines (and multi-line JSON)** | JSON parser plus line grouping so stack traces and pretty-printed blobs stay one logical record. |
-| **T-Digest** ([Dunning, 2013](https://github.com/tdunning/t-digest)) | Approximate p50/p95/p99 latency without storing every sample — memory stays flat on long files. |
-| **Median Absolute Deviation (MAD)** | Error-rate spikes are judged against **this file’s** baseline, not a fixed global threshold. |
-| **“Don’t throw away the whole line”** | Each field is **Known**, **Absent**, or **Unknown** with a confidence score — a bad latency token does not erase a good timestamp. |
-| **Quarantine instead of silent drop** | Low-confidence or time-less rows are stored with a **reason** so you can see parser gaps, not just “missing data.” |
+| Idea | How it appears in logana |
+|------|---------------------------|
+| Read the file once, like ops often do | Streaming pipeline: read → group lines → parse → accept or quarantine → update metrics → print |
+| Common web server access log format | Dedicated parser for Combined Log Format (CLF) plus shared HTTP field extraction |
+| Syslog and `key=value` lines | Syslog and logfmt-style parsers; timezone and missing-year handling for older logs |
+| JSON log lines, including multi-line JSON | JSON parser plus line grouping so stack traces stay with the record they belong to |
+| Percentiles without storing every sample | T-Digest ([Dunning, 2013](https://github.com/tdunning/t-digest)) for approximate p50/p95/p99 latency |
+| Spike detection relative to this file | Median Absolute Deviation (MAD) on error-rate buckets, not a fixed global threshold |
+| Do not discard a whole line because one field failed | Each field is **Known**, **Absent**, or **Unknown**, with a confidence score |
+| Show why a line was skipped | Quarantine entries store a human-readable reason, not silent drops |
 
 ---
 
 ## Architecture
 
-One file flows through a fixed pipeline. Analytics run **per event** as lines are processed, not after loading everything.
+Processing is **streaming**: analytics update as each logical record is accepted or quarantined. Nothing waits until the entire file has been read into memory.
 
-### Quick view
+### End-to-end flow
 
 ```mermaid
 flowchart LR
-  A[Log file] --> B[Read & group lines]
-  B --> C[Parse & extract fields]
-  C --> D{Trust OK?}
-  D -->|yes| E[Update stats]
-  D -->|no| F[Rejected bucket]
+  A[Log file] --> B[Read and group lines]
+  B --> C[Parse and extract fields]
+  C --> D{Accept?}
+  D -->|yes| E[Update statistics]
+  D -->|no| F[Quarantine bucket]
   E --> G[Summary / JSON / Dashboard]
   F --> G
 ```
 
-### Design diagram (end-to-end)
+### Detailed pipeline
 
 ```mermaid
 flowchart TB
   subgraph input [Input]
     F[Log file on disk]
-    CLI[CLI flags: timezone, threshold, format]
+    CLI[CLI: timezone, threshold, profile, format]
   end
 
   subgraph pipeline [Pipeline — one pass]
     SR[streamReader<br/>read line by line]
-    LB[lineBoundary<br/>glue stacks & multi-line JSON]
+    LB[lineBoundary<br/>join stacks and multi-line JSON]
     FP[formatProbe<br/>guess JSON / CLF / syslog / KV / …]
-    P[Parsers + tokenExtractor fallback<br/>merge best fields per column]
+    P[Parsers + token fallback<br/>merge best fields per column]
     EX[Extractors<br/>time, IP, HTTP fields]
-    QG{quarantineGate<br/>valid time + confidence?}
+    QG{quarantineGate<br/>timestamp and profile rules}
   end
 
   subgraph accepted [Accepted row]
-    EV[LogEvent<br/>8 fields, each Known / Unknown / Absent]
+    EV[LogEvent<br/>fields: Known / Unknown / Absent]
   end
 
   subgraph rejected [Rejected row]
-    QN[QuarantineEntry<br/>reason + sample text]
+    QN[QuarantineEntry<br/>reason + raw text]
   end
 
   subgraph analytics [Streaming analytics — bounded RAM]
     ACC[accumulatorSet]
     ER[error rate + spikes]
-    LAT[latency p50/p95/p99]
+    LAT[latency percentiles]
     EP[endpoints / activities]
     EC[error clusters]
     QT[quarantine stats]
-    OTH[format drift, quality, keywords, time span]
+    OTH[format drift, quality, time span]
   end
 
   subgraph output [Output]
@@ -127,109 +142,75 @@ flowchart TB
   ACC --> SUM & JSON & DASH
 ```
 
-### Design diagram (layers)
+### Walkthrough
 
-```mermaid
-flowchart LR
-  subgraph L1 [CLI]
-    M[cliMain]
-  end
-
-  subgraph L2 [Pipeline]
-    R[pipelineRunner]
-    C[pipelineConfig + timeContext]
-  end
-
-  subgraph L3 [Parsing]
-    PA[parsers]
-    TK[tokenExtractor]
-    EXT[extractors]
-  end
-
-  subgraph L4 [Models]
-    FS[fieldState]
-    LE[logEvent]
-    QE[quarantineEntry]
-  end
-
-  subgraph L5 [Analytics]
-    AS[accumulatorSet]
-  end
-
-  subgraph L6 [Output]
-    OUT[summary / json / dashboard]
-  end
-
-  M --> R
-  C --> R
-  R --> PA & TK & EXT
-  PA & TK --> FS
-  FS --> LE & QE
-  LE & QE --> AS --> OUT
-```
+1. **streamReader** reads the file as a generator, one physical line at a time.
+2. **lineBoundary** merges lines that belong together (continuation of a stack trace, indented JSON, and similar cases).
+3. **formatProbe** and **parserDispatch** guess the best parser (JSON, CLF, syslog, key=value, delimited) and fall back to a generic token scanner when no structured parser fits.
+4. **Extractors** and **line patterns** fill standard columns: timestamp, IP, HTTP method, URL path, status code, response time in milliseconds, log level.
+5. **quarantineGate** decides whether the record is trusted enough to count in metrics. Under the default **pragmatic** profile, only the timestamp must be solid; under **strict**, weak optional fields can also cause rejection.
+6. **accumulatorSet** updates error rate, latency digest, endpoint counts, error clusters, and related statistics with fixed memory caps.
+7. **Output** renders summary text, JSON, or the live dashboard.
 
 ```text
 log file
-  → streamReader          (read lines as a generator)
-  → lineBoundary          (join multi-line JSON, stack traces)
-  → parserDispatch        (guess format, run parser, merge fallback tokens)
-  → quarantineGate        (confidence + valid time)
-  → accumulatorSet        (bounded streaming metrics)
+  → streamReader
+  → lineBoundary
+  → parserDispatch (format probe + parsers + token fallback)
+  → quarantineGate
+  → accumulatorSet
   → summary | json | dashboard
 ```
 
-### Layers (by responsibility)
+### Code layers
 
-| Layer | Role |
-|-------|------|
-| **CLI** | Arguments, timezone, output format |
-| **Pipeline** | Orchestration: streaming, grouping, gating |
-| **Parsers** | JSON, CLF (Apache-style), syslog, key=value, delimited |
-| **Extractors** | Shared rules for timestamp, IP, HTTP fields |
-| **Models** | `LogEvent`, quarantine records, per-field certainty |
-| **Analytics** | Error rate, latency digest, endpoints, clusters, drift |
+| Layer | Responsibility |
+|-------|----------------|
+| **CLI** | Arguments, timezone, output format, quarantine profile |
+| **Pipeline** | Orchestration: streaming read, grouping, gating |
+| **Parsers** | JSON, CLF, syslog, key=value, delimited text |
+| **Extractors** | Shared rules for timestamps, IP addresses, HTTP fields |
+| **Models** | `LogEvent`, quarantine records, per-field state |
+| **Analytics** | Error rate, latency digest, endpoints, clusters, format drift |
 | **Output** | Text summary, JSON export, Rich dashboard |
 
-### Core design ideas
+### Design principles
 
-1. **Streaming first** — The file is a generator end to end. Metrics update as each logical record is accepted or quarantined.
+1. **Streaming first** — Memory use should stay predictable as file size grows.
+2. **Uncertainty per field** — A bad status code token does not erase a good timestamp; analytics use what is reliable.
+3. **Quarantine with reasons** — Rejected lines are counted and explained, so gaps in parsing are visible in the report.
+4. **Bounded memory** — Endpoint tables, cluster lists, digest size, and context buffers have caps (see table below).
 
-2. **Uncertainty per field** — Fields carry confidence. Analytics can use what is solid and ignore what is not, instead of dropping the entire line.
-
-3. **Quarantine with reasons** — Rows below the confidence threshold, or without a usable timestamp (unless you opt in), go to quarantine with an explicit reason. They still appear in quarantine stats.
-
-4. **Bounded memory** — Caps on endpoint table size, error clusters, digest size, and context buffers keep RAM roughly **flat** as the file grows.
-
-### Memory caps (approximate)
+### Memory limits (approximate)
 
 | Structure | Limit |
 |-----------|--------|
-| Lines per logical record | 50 |
-| Context snippets kept | 5 × 200 characters |
-| Distinct endpoint paths tracked | 200 (rest → `(other)`) |
+| Lines merged into one logical record | 50 |
+| Context snippets kept for quarantined lines | 5 × 200 characters |
+| Distinct endpoint paths tracked | 200 (additional paths grouped as `(other)`) |
 | Error pattern clusters | 50 |
 | Latency digest centroids | ~100 |
 | Error-rate history buckets | 60 |
 
-The log on disk can be gigabytes; working set should not grow with every line forever.
+The file on disk may be very large; the working set in RAM should not grow without bound as line count increases.
 
-### Honest limits
+### Known limitations
 
-- **One file, one machine** — not a log platform.
-- **Text logs only** — no binary EVTX, PCAP, etc.
-- **Heuristic parsers** — odd vendor formats may need `--log-timezone` or `--reference-date`.
-- **Stack trace tails** — continuation lines (`at com.example...`) often quarantine separately from the error header; metrics on the error are still useful, but quarantine % can look high.
-- **Dashboard** needs a real terminal and the `rich` package; otherwise the tool falls back to summary text.
+- **One file at a time** — not a multi-host log platform.
+- **Text logs only** — binary formats (EVTX, PCAP, and similar) are out of scope.
+- **Heuristic parsing** — unusual vendor formats may need `--log-timezone` or `--reference-date`.
+- **Stack trace tails** — continuation lines sometimes quarantine separately from the error header; error metrics on the header line remain useful.
+- **Dashboard** requires a normal terminal and the `rich` package; otherwise the tool prints the text summary instead.
 
 ---
 
 ## Requirements
 
 - **Python 3.11 or newer**
-- **[Poetry](https://python-poetry.org/docs/#installation)** for install and runs (recommended)
-- **Windows / macOS / Linux** — tested with Poetry; CLI handles consoles that lack Unicode glyphs
+- **[Poetry](https://python-poetry.org/docs/#installation)** (recommended for install and runs)
+- **Windows, macOS, or Linux**
 
-**Libraries** (installed via Poetry): `click`, `rich`, `tzdata`, `python-dateutil`, `drain3`, `orjson`, `logfmt`, `apachelogs`, `pydantic`, `plotext`. T-Digest percentiles use the in-tree implementation (the PyPI `tdigest` package needs a C++ toolchain on Windows).
+Main dependencies (via Poetry): `click`, `rich`, `tzdata`, `python-dateutil`, `drain3`, `orjson`, `logfmt`, `apachelogs`, `pydantic`, `plotext`. Latency percentiles use an in-tree T-Digest implementation because the PyPI `tdigest` package requires a C++ compiler on Windows.
 
 ---
 
@@ -242,23 +223,26 @@ git clone https://github.com/emanalytic/Logana
 cd Log-Analyzer
 ```
 
-### 2. Install with Poetry
+### 2. Install dependencies
 
 ```bash
 poetry lock
 poetry install
 ```
 
-### 3. Run on the sample log
+### 3. Run on a sample log
 
 ```bash
 poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
-
-poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
-
 ```
 
-> **Tip:** If timestamps in your file are “local wall clock” in a specific region, set `--log-timezone` to that IANA name (e.g. `America/Chicago`, `Asia/Karachi`, `UTC`, or `local`).
+Live dashboard:
+
+```bash
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
+```
+
+If timestamps in your file are local wall clock time in a specific region, set `--log-timezone` to the matching IANA name (for example `America/Chicago`, `Asia/Karachi`, `UTC`, or `local`).
 
 ---
 
@@ -268,20 +252,20 @@ poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format da
 poetry run logana [OPTIONS] FILE_PATH
 ```
 
-| Option | Default | What it does |
-|--------|---------|----------------|
-| `FILE_PATH` | *(required)* | Path to a **file** (not a folder). Must exist and be readable. |
-| `--format` | `summary` | `summary`, `json`, or `dashboard` |
-| `--quarantine-threshold` | `0.3` | Minimum parse confidence (0.0–1.0) to accept a row |
-| `--log-timezone` | `local` | IANA zone for **naive** timestamps (e.g. `America/Chicago`, `UTC`, `local`) |
-| `--naive-timestamps` | `local` | Treat naive times as `local` wall time or `utc` |
-| `--reference-date` | *(none)* | `YYYY-MM-DD` anchor when syslog lines have **no year** |
-| `--encoding` | `utf-8` | File encoding: `utf-8`, `utf-8-sig`, `latin-1`, etc. |
-| `--allow-synthetic-timestamps` | off | Last resort: assign weak “ingestion time” when no timestamp is found |
-| `--profile` | `pragmatic` | `pragmatic` (timestamp-only quarantine), `strict` (all fields), `forensics` (synthetic time) |
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `FILE_PATH` | *(required)* | Path to a single log **file** (not a directory) |
+| `--format` | `summary` | Output: `summary`, `json`, or `dashboard` |
+| `--quarantine-threshold` | `0.3` | Minimum confidence (0.0–1.0) for fields that must pass under **strict** profile |
+| `--profile` | `pragmatic` | `pragmatic` (require a good timestamp only), `strict` (also check optional fields), `forensics` (allow synthetic time when missing) |
+| `--log-timezone` | `local` | IANA timezone for timestamps that have no offset (for example `UTC`, `America/Chicago`, `local`) |
+| `--naive-timestamps` | `local` | Treat naive timestamps as local wall time or as UTC |
+| `--reference-date` | *(none)* | Anchor date (`YYYY-MM-DD`) when syslog lines omit the year |
+| `--encoding` | `utf-8` | File encoding: `utf-8`, `utf-8-sig`, `latin-1`, and others |
+| `--allow-synthetic-timestamps` | off | Assign a weak ingestion timestamp when no time is found (also enabled by `--profile forensics`) |
 | `-h`, `--help` | | Show help |
 
-### Commands you will use often
+### Common examples
 
 **Default text report**
 
@@ -289,70 +273,49 @@ poetry run logana [OPTIONS] FILE_PATH
 poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
 ```
 
-**Live terminal dashboard**
-
-```bash
-poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
-```
-
-**JSON for tooling**
+**JSON for automation**
 
 ```bash
 poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format json > report.json
 ```
 
-**Older syslog without a year** (example: Linux_2k fixture)
+**Syslog without a year** (Linux fixture)
 
 ```bash
 poetry run logana tests/fixtures/Linux_2k.log --reference-date 2004-06-15
 ```
 
-**Stricter parsing** (fewer quarantines, more rejects)
+**Stricter acceptance** (optional fields must also be confident)
 
 ```bash
-poetry run logana tests/fixtures/OpenSSH_2k.log --quarantine-threshold 0.5 --log-timezone UTC
+poetry run logana tests/fixtures/OpenSSH_2k.log --profile strict --log-timezone UTC
 ```
 
-**Windows-legacy encoding**
+**Legacy Windows encoding**
 
 ```bash
 poetry run logana tests/fixtures/Linux_2k.log --encoding latin-1 --reference-date 2004-06-15
 ```
 
-**Help**
+**Benchmark all LogHub fixtures**
 
 ```bash
-poetry run logana --help
-```
-
-### LogHub fixture examples
-
-See `tests/fixtures/README.md` (index) and **[tests/fixtures/LOGHUB.md](tests/fixtures/LOGHUB.md)** (results).
-
-```bash
-poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
-poetry run logana tests/fixtures/Linux_2k.log --reference-date 2004-06-15
-poetry run logana tests/fixtures/OpenSSH_2k.log --log-timezone UTC
 poetry run python scripts/benchmarkFixtures.py
 ```
 
+See also `tests/fixtures/README.md` and **[tests/fixtures/LOGHUB.md](tests/fixtures/LOGHUB.md)**.
+
 ---
 
-## Troubleshooting install and runs
+## Troubleshooting
 
 ### `poetry: command not found`
 
-Install Poetry from the [official docs](https://python-poetry.org/docs/#installation), then open a **new** terminal and run `poetry --version`.
+Install Poetry from the [official documentation](https://python-poetry.org/docs/#installation), open a new terminal, and run `poetry --version`.
 
 ### `Python version ... is not supported`
 
-You need **3.11+**. Check with:
-
-```bash
-python --version
-```
-
-Use pyenv, the Windows Store Python installer, or python.org to install 3.11 or 3.12, then point Poetry at it:
+Python **3.11+** is required. Check with `python --version`, install a supported version if needed, then:
 
 ```bash
 poetry env use python3.12
@@ -361,7 +324,7 @@ poetry install
 
 ### `ModuleNotFoundError: No module named 'logana'`
 
-Usually the package was not installed in the Poetry venv.
+Install the package in the Poetry environment:
 
 ```bash
 cd Log-Analyzer
@@ -369,11 +332,9 @@ poetry install
 poetry run logana --help
 ```
 
-Always prefer **`poetry run logana`** over a global `logana` unless you explicitly activated the venv.
+Use **`poetry run logana`** unless you have explicitly activated the virtual environment.
 
-### `logana.cmd` / entry point looks wrong after pulling changes
-
-Refresh the lockfile and reinstall:
+### Entry point problems after pulling changes
 
 ```bash
 poetry lock
@@ -384,33 +345,32 @@ The console script is defined in `pyproject.toml` as `logana.cli.cliMain:main`.
 
 ### `FileNotFoundError` or path errors
 
-- Use a **file** path, not a directory.
+- Pass a **file** path, not a directory.
 - On Windows, quote paths with spaces: `poetry run logana "C:\logs\app.log"`.
 
 ### Garbled characters or `UnicodeEncodeError`
 
-Try:
+Try a different encoding:
 
 ```bash
 poetry run logana tests/fixtures/Apache_2k.log --encoding utf-8-sig --reference-date 2005-12-04
 ```
 
-The CLI also replaces unprintable glyphs on limited Windows consoles when possible.
+The CLI replaces unprintable characters on limited Windows consoles when possible.
 
-### Dashboard shows nothing useful
+### Dashboard is empty or unhelpful
 
-- Run in a real terminal (Windows Terminal, iTerm, etc.), not a stripped-down log pane.
-- If `rich` is missing, you get **summary** fallback automatically.
+Run in a full terminal (Windows Terminal, iTerm, and similar). If `rich` is missing, logana falls back to the text summary automatically.
 
-### Everything quarantines — “no valid timestamp”
+### Most lines are quarantined — “no valid timestamp”
 
-- Set **`--log-timezone`** to where the log was written.
-- For syslog **without a year**, add **`--reference-date YYYY-MM-DD`**.
-- Only if you understand the tradeoff: **`--allow-synthetic-timestamps`**.
+- Set **`--log-timezone`** to the zone where the log was written.
+- For syslog **without a year**, add **`--reference-date YYYY-MM-DD`** (or rely on automatic year detection from early lines).
+- For exploratory acceptance only: **`--profile forensics`** or **`--allow-synthetic-timestamps`** (read the warnings in the output).
 
-### Error rate looks wrong on “WARN” lines
+### Error rate seems high on WARN lines
 
-By design, a line can say WARN/INFO but still count as an error if the **HTTP status is 5xx** — that matches how ops often judges outages (see `errorSeverity` in code and **ANSWERS.md**).
+A line can contain the word WARN and still count as an error if the HTTP status is 5xx. That matches how many teams judge outages from access logs. Details are in `errorSeverity` in the code and in **ANSWERS.md**.
 
 ---
 
@@ -427,23 +387,23 @@ With coverage:
 poetry run pytest --cov=logana --cov-report=term-missing
 ```
 
-Layout:
-
-- **`src/logana/`** — application code  
-- **`tests/`** — unit, integration, and fixture corpus tests  
+| Path | Contents |
+|------|----------|
+| `src/logana/` | Application code |
+| `tests/` | Unit tests, integration tests, LogHub fixtures |
+| `tests/fixtures/LOGHUB.md` | Benchmark results and methodology |
+| `scripts/benchmarkFixtures.py` | Run all fixture logs and print a comparison table |
 
 ---
 
-## Project layout (high level)
+## Project layout
 
 ```text
 Log-Analyzer/
-├── ANSWERS.md           # submission Q&A
-├── pyproject.toml       # Poetry config and CLI entry point
-├── scripts/             # benchmarkFixtures.py
-├── src/logana/          # package (cli, pipeline, parsers, analytics, output)
-└── tests/fixtures/      # LogHub real-world logs + LOGHUB.md results
+├── ANSWERS.md              # Submission Q&A and design notes
+├── pyproject.toml          # Poetry config and CLI entry point
+├── scripts/
+│   └── benchmarkFixtures.py
+├── src/logana/             # cli, pipeline, parsers, extractors, analytics, output
+└── tests/fixtures/         # LogHub logs and LOGHUB.md results
 ```
-
----
-
