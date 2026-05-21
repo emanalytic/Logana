@@ -1,5 +1,5 @@
 from logana.models.fieldState import FieldState, Known, Unknown, Absent
-from logana.extractors.base import BaseExtractor
+from logana.extractors.extractorBase import BaseExtractor
 
 class StatusCodeExtractor(BaseExtractor[int]):
     """Extractor for HTTP status codes (2xx, 3xx, 4xx, 5xx, etc.)."""

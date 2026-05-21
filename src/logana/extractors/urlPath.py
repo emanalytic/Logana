@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 from logana.models.fieldState import FieldState, Known, Unknown, Absent
-from logana.extractors.base import BaseExtractor
+from logana.extractors.extractorBase import BaseExtractor
 
 class UrlPathExtractor(BaseExtractor[str]):
     """Extractor for URL paths from relative paths or absolute URLs."""

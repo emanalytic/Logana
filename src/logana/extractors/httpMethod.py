@@ -1,5 +1,5 @@
 from logana.models.fieldState import FieldState, Known, Unknown, Absent
-from logana.extractors.base import BaseExtractor
+from logana.extractors.extractorBase import BaseExtractor
 
 KNOWN_METHODS = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "CONNECT", "TRACE"}
 

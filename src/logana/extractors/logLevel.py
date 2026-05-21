@@ -1,5 +1,5 @@
 from logana.models.fieldState import FieldState, Known, Unknown, Absent
-from logana.extractors.base import BaseExtractor
+from logana.extractors.extractorBase import BaseExtractor
 
 LEVEL_MAP = {
     "ERROR": "ERROR", "SEVERE": "ERROR", "ERR": "ERROR",
@@ -9,6 +9,12 @@ LEVEL_MAP = {
     "TRACE": "TRACE", "TRC": "TRACE",
     "FATAL": "FATAL", "FTL": "FATAL",
     "CRITICAL": "CRITICAL", "CRIT": "CRITICAL", "CRT": "CRITICAL"
+}
+
+SEMANTIC_MAP = {
+    "FAILURE": "ERROR", "FAIL": "ERROR", "FAILED": "ERROR",
+    "TIMEOUT": "ERROR", "EXCEPTION": "ERROR", "REFUSED": "ERROR",
+    "DENIED": "WARN", "UNAUTHORIZED": "WARN", "PANIC": "FATAL"
 }
 
 SINGLE_CHAR_LEVELS = {
@@ -22,7 +28,7 @@ SINGLE_CHAR_LEVELS = {
 }
 
 class LogLevelExtractor(BaseExtractor[str]):
-    """Extractor for standard log levels (INFO, WARN, ERROR, etc.)."""
+    """Extractor for standard log levels (INFO, WARN, ERROR, etc.) and semantic implicit levels."""
     
     def __init__(self):
         super().__init__("logLevel")
@@ -32,16 +38,15 @@ class LogLevelExtractor(BaseExtractor[str]):
         if not cleaned:
             return Absent()
 
-        # Match standard levels
         if cleaned in LEVEL_MAP:
             return Known(LEVEL_MAP[cleaned], 0.98, token)
-
-        # Match single-character levels
+        if cleaned in SEMANTIC_MAP:
+            return Known(SEMANTIC_MAP[cleaned], 0.85, f"implicit: {token}")
         if cleaned in SINGLE_CHAR_LEVELS:
-            # Lower confidence since single chars like 'I' can easily be false positives
+            ##lower confidence since single chars like 'I' can easily be false positives##
             return Known(SINGLE_CHAR_LEVELS[cleaned], 0.6, token)
 
-        # Catch-all for other bracketed words that might be a custom level
+        ##catch-all for other bracketed words that might be a custom level##
         if token.startswith('[') and token.endswith(']') and cleaned.isalpha():
             return Unknown(f"Unrecognized log level: '{cleaned}'", cleaned, 0.4)
 
