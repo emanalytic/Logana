@@ -121,7 +121,7 @@ The log on disk can be gigabytes; working set should not grow with every line fo
 ### 1. Clone and enter the project
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/emanalytic/Logana
 cd Log-Analyzer
 ```
 
