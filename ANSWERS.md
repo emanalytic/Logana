@@ -95,7 +95,7 @@ A single outage is often visible in several shapes at once: access-style lines (
 
 ## 4. AI usage
 
-I used **[Cursor](https://cursor.com)** as a coding assistant while building logana. It did **not** design the project. I chose the architecture, folder layout, pipeline stages, and coding style first. AI helped mainly with implementation speed; then I reviewed and changed anything that did not fit.
+I used **[Cursor](https://cursor.com)** as a coding assistant while building logana. It did **not** design the project. I chose the architecture, folder layout, pipeline stages, and coding style first. AI helped mainly with implementation speed then i reviewed and changed anything that did not fit.
 
 AI sped up typing and debugging. **Architecture, structure, and product choices are mine.** I read diffs, ran tests, and removed or rewrote suggestions that were wrong or too generic
 
