@@ -1,0 +1,115 @@
+﻿203.101.45.12 - - [21/May/2025:09:00:01 +0500] "GET /health HTTP/1.1" 200 42 "-" "kube-probe/1.28"
+203.101.45.12 - - [21/May/2025:09:00:02 +0500] "GET /api/v2/catalog HTTP/1.1" 200 18432 "https://shop.pk/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+58.65.192.88 - user_8841 [21/May/2025:09:00:03 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 502 512 "https://shop.pk/cart" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4)"
+58.65.192.88 - user_8841 [21/May/2025:09:00:04 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 503 128 "https://shop.pk/cart" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4)"
+39.40.11.200 - - [21/May/2025:09:00:05 +0500] "GET /api/v2/orders/ORD-99281 HTTP/1.1" 200 2048 "-" "Dalvik/2.1.0"
+39.40.11.200 - - [21/May/2025:09:00:06 +0500] "GET /static/assets/app.v3.js HTTP/1.1" 304 0 "https://shop.pk/" "Mozilla/5.0"
+
+{"@timestamp":"2025-05-21T09:00:07+05:00","service":"api-gateway","trace_id":"7f3a9c2e1b004d8a","span_id":"a1b2c3d4","level":"INFO","ip":"203.101.45.12","method":"GET","path":"/api/v2/catalog","status":200,"duration_ms":118,"upstream":"catalog-svc","region":"pk-south-1"}
+{"@timestamp":"2025-05-21T09:00:08+05:00","service":"api-gateway","trace_id":"7f3a9c2e1b004d8b","level":"WARN","ip":"58.65.192.88","method":"POST","path":"/api/v2/cart/checkout","status":502,"duration_ms":3200,"upstream":"payment-svc","msg":"upstream timeout after 3000ms"}
+{"@timestamp":"2025-05-21T09:00:09+05:00","service":"api-gateway","trace_id":"7f3a9c2e1b004d8c","level":"ERROR","ip":"58.65.192.88","method":"POST","path":"/api/v2/cart/checkout","status":503,"duration_ms":45,"msg":"circuit breaker open for payment-svc"}
+
+time=2025-05-21T09:00:10+05:00 level=info service=auth-svc pod=auth-7d4f9b-2k8mz msg="token issued" ip=39.40.11.200 status=200 duration=22ms user_id=usr_44102
+time=2025-05-21T09:00:11+05:00 level=warn service=auth-svc pod=auth-7d4f9b-2k8mz msg="refresh token near expiry" ip=39.40.11.200 status=200 duration=18ms
+time=2025-05-21T09:00:12+05:00 level=error service=auth-svc pod=auth-7d4f9b-k7x9p msg="redis connection reset" ip=10.20.1.15 status=503 duration=5012ms trace=7f3a9c2e1b004d90
+
+2025-05-21 09:00:13 [ERROR] payment-svc â€” Charge failed for order ORD-99281: Connection pool exhausted
+    at com.shop.payment.PaymentProcessor.charge(PaymentProcessor.java:88)
+    at com.shop.payment.CheckoutController.complete(CheckoutController.java:41)
+    Caused by: java.sql.SQLTimeoutException: HikariPool-1 - Connection is not available, request timed out after 30000ms
+        at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+        at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:181)
+    ... 12 more
+
+2025-05-21T09:00:14+05:00|catalog-svc|GET|/internal/products/bulk|200|89ms|10.20.2.44
+2025-05-21T09:00:15+05:00|catalog-svc|GET|/internal/products/PRD-8812|404|12ms|10.20.2.44
+2025-05-21T09:00:16+05:00|catalog-svc|GET|/internal/products/PRD-8812|200|340ms|10.20.2.44
+
+<134>May 21 09:00:17 lb-khi-01 haproxy[4421]: 10.20.0.5:54321 [21/May/2025:09:00:17 +0500] payment-svc BACKEND payment-svc/pay-01 0/0/12/3201/3213 502 217 - - ---- 8/8/4/4/0 0/0 "POST /charge HTTP/1.1"
+<165>May 21 09:00:18 lb-khi-01 haproxy[4421]: 10.20.0.5:54322 [21/May/2025:09:00:18 +0500] payment-svc BACKEND payment-svc/pay-02 0/0/8/45/53 503 128 - - ---- 8/8/3/3/0 0/0 "POST /charge HTTP/1.1"
+
+{"timestamp":"2025-05-21T09:00:19+05:00","service":"order-svc","level":"info","path":"/api/v2/orders/ORD-99281","status":200,"duration":"45ms","ip":"39.40.11.200","msg":"order fetched from read replica"}
+{"timestamp":"2025-05-21T09:00:20+05:00","service":"order-svc","level":"error","path":"/api/v2/orders/ORD-99281/events","status":500,"duration":"890ms","ip":"39.40.11.200","msg":"Kafka publish failed: NOT_LEADER_FOR_PARTITION"}
+{"timestamp":"2025-05-21T09:00:21+05:00","service":"order-svc","level":"error","path":"/api/v2/orders/ORD-99281/events","status":500,"duration":"1205ms","ip":"39.40.11.200","msg":"Kafka publish failed: NOT_LEADER_FOR_PARTITION"}
+{"timestamp":"2025-05-21T09:00:22+05:00","service":"order-svc","level":"error","path":"/api/v2/orders/ORD-99281/events","status":500,"duration":"2100ms","ip":"39.40.11.200","msg":"Kafka publish failed: NOT_LEADER_FOR_PARTITION"}
+
+time=2025-05-21T09:00:23+05:00 level=info service=notify-worker msg="SMS queued" status=202 duration=8ms provider=jazz-sms
+time=2025-05-21T09:00:24+05:00 level=error service=notify-worker msg="SMS delivery failed: HTTP 429 Too Many Requests" status=429 duration=120ms
+
+203.101.45.12 - - [21/May/2025:09:00:25 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 503 256 "-" "PostmanRuntime/7.36"
+203.101.45.12 - - [21/May/2025:09:00:26 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 503 256 "-" "curl/8.5.0"
+58.65.192.88 - - [21/May/2025:09:00:27 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 503 256 "https://shop.pk/" "Mozilla/5.0"
+58.65.192.88 - - [21/May/2025:09:00:28 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 502 512 "https://shop.pk/" "Mozilla/5.0"
+39.40.11.200 - - [21/May/2025:09:00:29 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 503 256 "-" "okhttp/4.12.0"
+39.40.11.200 - - [21/May/2025:09:00:30 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 503 256 "-" "okhttp/4.12.0"
+
+{"@timestamp":"2025-05-21T09:00:31+05:00","service":"payment-svc","level":"FATAL","path":"/charge","status":503,"duration_ms":30001,"msg":"Connection pool exhausted","order_id":"ORD-99281"}
+{"@timestamp":"2025-05-21T09:00:32+05:00","service":"payment-svc","level":"ERROR","path":"/charge","status":503,"duration_ms":30002,"msg":"Connection pool exhausted","order_id":"ORD-99282"}
+{"@timestamp":"2025-05-21T09:00:33+05:00","service":"payment-svc","level":"ERROR","path":"/charge","status":503,"duration_ms":30003,"msg":"Connection pool exhausted","order_id":"ORD-99283"}
+
+2025-05-21 09:00:34 [WARN] search-svc â€” slow query /api/v2/search?q=laptop took 2400ms client=203.101.45.12
+2025-05-21 09:00:35 [INFO] redis-cache â€” cache hit ratio 0.72 keyspace=session:*
+time=2025-05-21T09:00:36+05:00 level=info service=search-svc path=/api/v2/search status=200 duration=2450ms ip=203.101.45.12
+time=2025-05-21T09:00:37+05:00 level=info service=search-svc path=/api/v2/search status=200 duration=89ms ip=203.101.45.12
+
+<165>1 2025-05-21T09:00:38+05:00 pay-audit-01 shop.payment - ID991 [audit@shop pk] payment retry scheduled order=ORD-99281 attempt=2
+<134>1 2025-05-21T09:00:39+05:00 pay-audit-01 shop.payment - ID992 [audit@shop pk] charge succeeded order=ORD-99280 amount=PKR 12499
+
+203.101.45.12 - user_8841 [21/May/2025:09:00:40 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 200 892 "https://shop.pk/cart" "Mozilla/5.0 (iPhone)"
+58.65.192.88 - user_8841 [21/May/2025:09:00:41 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 200 901 "https://shop.pk/cart" "Mozilla/5.0 (iPhone)"
+{"timestamp":"2025-05-21T09:00:42+05:00","service":"payment-svc","level":"info","path":"/charge","status":200,"duration":"412ms","msg":"charge captured","ip":"10.20.0.5"}
+{"timestamp":"2025-05-21T09:00:43+05:00","service":"payment-svc","level":"info","path":"/charge","status":200,"duration":"398ms","ip":"10.20.0.5"}
+
+10.20.0.1 - admin [21/May/2025:09:00:44 +0500] "GET /internal/metrics HTTP/1.1" 200 65536 "-" "Prometheus/2.51.0"
+10.20.0.1 - admin [21/May/2025:09:00:45 +0500] "GET /internal/ready HTTP/1.1" 200 12 "-" "kube-probe/1.28"
+
+DEBUG: thread pool queue depth = 847 (this line has no proper timestamp)
+[heartbeat] worker-3 alive â€” missing year and offset
+{"broken": true, "timestamp": "not-a-real-date", "level": "error", "msg": "schema drift test"}
+
+2025-05-21T09:00:46+05:00	edge-cdn	GET	/assets/logo.pk.svg	200	8ms	92.168.1.50
+2025-05-21T09:00:47+05:00	edge-cdn	GET	/assets/banner.webp	200	22ms	92.168.1.50
+2025-05-21T09:00:48+05:00	edge-cdn	GET	/api/v2/catalog	504	60000ms	92.168.1.50
+
+time=2025-05-21T09:00:49+05:00 level=info service=inventory-sync msg="batch completed" status=200 duration=45000ms records=12840
+time=2025-05-21T09:00:50+05:00 level=error service=inventory-sync msg="partial failure: 12 SKUs failed validation" status=207 duration=45120ms
+
+2025-05-21 09:00:51 [ERROR] auth-svc â€” Session store unavailable
+    at redis.clients.jedis.Jedis.ping(Jedis.java:402)
+    at com.shop.auth.SessionRepository.health(SessionRepository.java:29)
+    Caused by: redis.clients.jedis.exceptions.JedisConnectionException: Unexpected end of stream
+        at redis.clients.jedis.util.RedisInputStream.ensureFill(RedisInputStream.java:202)
+
+2025-05-21 09:01:00 [INFO] api-gateway request_id=req-9001 method=GET path=/api/v2/catalog status=200 latency=95ms client=39.40.11.200
+2025-05-21 09:01:01 [INFO] api-gateway request_id=req-9002 method=GET path=/api/v2/catalog status=200 latency=102ms client=203.101.45.12
+2025-05-21 09:01:02 [ERROR] api-gateway request_id=req-9003 method=POST path=/api/v2/login status=401 latency=5ms client=58.65.192.88 msg=invalid_credentials
+2025-05-21 09:01:03 [ERROR] api-gateway request_id=req-9004 method=POST path=/api/v2/login status=401 latency=4ms client=58.65.192.88 msg=invalid_credentials
+2025-05-21 09:01:04 [ERROR] api-gateway request_id=req-9005 method=POST path=/api/v2/login status=401 latency=6ms client=58.65.192.88 msg=invalid_credentials
+2025-05-21 09:01:05 [ERROR] api-gateway request_id=req-9006 method=POST path=/api/v2/login status=429 latency=1ms client=58.65.192.88 msg=rate_limited
+
+203.101.45.12 - - [21/May/2025:09:01:06 +0500] "GET /api/v2/recommendations HTTP/1.1" 200 4096 "https://shop.pk/" "Mozilla/5.0"
+203.101.45.12 - - [21/May/2025:09:01:07 +0500] "GET /api/v2/recommendations HTTP/1.1" 200 4096 "https://shop.pk/" "Mozilla/5.0"
+39.40.11.200 - - [21/May/2025:09:01:08 +0500] "DELETE /api/v2/cart/items/ITEM-441 HTTP/1.1" 204 0 "-" "okhttp/4.12.0"
+39.40.11.200 - - [21/May/2025:09:01:09 +0500] "PUT /api/v2/cart/items/ITEM-441 HTTP/1.1" 200 256 "-" "okhttp/4.12.0"
+
+{"@timestamp":"2025-05-21T09:01:10+05:00","service":"recommendation-svc","level":"info","path":"/api/v2/recommendations","status":200,"duration_ms":156,"model":"v3-ranker","ip":"203.101.45.12"}
+{"@timestamp":"2025-05-21T09:01:11+05:00","service":"recommendation-svc","level":"warn","path":"/api/v2/recommendations","status":200,"duration_ms":890,"model":"v3-ranker","msg":"feature store lag 2.1s"}
+
+<34>May 21 09:01:12 app-server-02 kernel: [12345.678901] TCP: request_sock_TCP: Possible SYN flooding on port 443. Sending cookies.
+
+time=2025-05-21T09:01:13+05:00 level=info service=shipping-svc path=/api/v2/shipping/quote status=200 duration=67ms ip=39.40.11.200 city=Karachi
+time=2025-05-21T09:01:14+05:00 level=info service=shipping-svc path=/api/v2/shipping/quote status=200 duration=71ms ip=58.65.192.88 city=Lahore
+time=2025-05-21T09:01:15+05:00 level=error service=shipping-svc path=/api/v2/shipping/quote status=500 duration=8900ms ip=39.40.11.200 msg="carrier API timeout (TCS)"
+
+2025-05-21T09:01:16+05:00|webhook-dispatcher|POST|/hooks/payment/callback|200|34ms|52.169.1.10
+2025-05-21T09:01:17+05:00|webhook-dispatcher|POST|/hooks/payment/callback|500|12000ms|52.169.1.10
+2025-05-21T09:01:18+05:00|webhook-dispatcher|POST|/hooks/payment/callback|500|11800ms|52.169.1.10
+
+203.101.45.12 - - [21/May/2025:09:01:19 +0500] "GET /api/v2/account/profile HTTP/1.1" 200 1024 "-" "Mozilla/5.0"
+58.65.192.88 - - [21/May/2025:09:01:20 +0500] "PATCH /api/v2/account/profile HTTP/1.1" 422 384 "-" "Mozilla/5.0"
+{"timestamp":"2025-05-21T09:01:21+05:00","service":"profile-svc","level":"warn","path":"/api/v2/account/profile","status":422,"duration":"12ms","msg":"validation failed: phone format"}
+
+{"@timestamp":"2025-05-21T09:01:22+05:00","service":"ops-bot","level":"info","msg":"auto-scaled payment-svc 3 -> 6 replicas","region":"pk-south-1"}
+{"@timestamp":"2025-05-21T09:01:23+05:00","service":"payment-svc","level":"info","path":"/charge","status":200,"duration":"210ms","msg":"pool recovered"}
+203.101.45.12 - - [21/May/2025:09:01:24 +0500] "POST /api/v2/cart/checkout HTTP/1.1" 200 880 "https://shop.pk/" "Mozilla/5.0"
+203.101.45.12 - - [21/May/2025:09:01:25 +0500] "GET /health HTTP/1.1" 200 42 "-" "kube-probe/1.28"
