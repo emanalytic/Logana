@@ -1,6 +1,6 @@
 # ANSWERS.md
 
-Short answers for reviewers. Full setup and architecture: [README.md](README.md).
+ Full setup and architecture: [README.md](README.md).
 
 ---
 
