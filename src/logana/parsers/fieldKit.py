@@ -10,6 +10,7 @@ from logana.extractors.responseTime import ResponseTimeExtractor
 from logana.extractors.urlPath import UrlPathExtractor
 from logana.extractors.logLevel import LogLevelExtractor
 from logana.extractors.extractorBase import BaseExtractor
+from logana.extractors.linePatterns import scanLinePatterns
 
 STANDARD_FIELD_NAMES: List[str] = [
     "timestamp",
@@ -135,3 +136,5 @@ class ParserFieldKit:
                 ):
                     continue
                 self.mergeField(fields, ext.fieldName, ext.extract(token))
+
+        scanLinePatterns(fields, self, lineText)

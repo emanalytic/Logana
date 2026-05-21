@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date
 from pathlib import Path
 
 from logana.output.summaryReport import generateSummary
@@ -12,16 +11,9 @@ from logana.pipeline.pipelineRunner import runPipeline
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 
-# Per-file CLI hints used in real runs
-RUN_OPTS: dict[str, dict] = {
-    "Linux_2k.log": {"referenceDate": date(2004, 6, 15)},
-    "Apache_2k.log": {"referenceDate": date(2005, 12, 4)},
-}
-
 
 def analyze(path: Path) -> dict:
-    opts = RUN_OPTS.get(path.name, {})
-    config = PipelineConfig.fromCli(**opts)
+    config = PipelineConfig.fromCli()
     acc = runPipeline(str(path), config)
     return {
         "file": path.name,

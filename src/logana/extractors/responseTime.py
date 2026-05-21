@@ -6,7 +6,6 @@ RESPONSE_TIME_RE = re.compile(
     r'^([0-9]+(?:\.[0-9]+)?)\s*(ms|us|s|ns|sec|seconds|milliseconds)?$',
     re.IGNORECASE
 )
-
 class ResponseTimeExtractor(BaseExtractor[float]):
     """Extractor for response times (normalizing units to milliseconds)."""
 

@@ -12,6 +12,7 @@ from logana.parsers.delimitedParser import DelimitedParser
 from logana.parsers.tokenExtractor import TokenExtractor
 from logana.pipeline.parserDispatch import ParserDispatch
 from logana.pipeline.quarantineGate import QuarantineGate
+from logana.pipeline.quarantineProfile import QuarantineProfile
 
 def test_json_parser():
     parser = JsonParser()
@@ -132,6 +133,10 @@ def test_parser_dispatch():
 
 def test_quarantine_gate():
     gate = QuarantineGate(quarantineThreshold=0.3)
+    strict_gate = QuarantineGate(
+        quarantineThreshold=0.3,
+        profile=QuarantineProfile.STRICT,
+    )
     
     # Valid parse result
     validFields = {
@@ -154,14 +159,16 @@ def test_quarantine_gate():
         "timestamp": Known(datetime.now(), 0.9, "now"),
         "statusCode": Known(200, 0.1, "200") # below 0.3 threshold
     }
-    quarantineRes2 = gate.route(ParseResult("test", lowConfFields, "raw line", 12))
+    quarantineRes2 = strict_gate.route(ParseResult("test", lowConfFields, "raw line", 12))
     assert isinstance(quarantineRes2, QuarantineEntry)
     assert "confidence" in quarantineRes2.reason
 
-    lowConfUnknownFields = {
-        "timestamp": Known(datetime.now(), 0.9, "now"),
-        "statusCode": Unknown("ambiguous status", 700, 0.1)
+    lowConfTimestamp = {
+        "timestamp": Unknown("ambiguous time", datetime.now(timezone.utc), 0.1),
+        "statusCode": Known(200, 0.9, "200"),
     }
-    quarantineRes3 = gate.route(ParseResult("test", lowConfUnknownFields, "raw line", 13))
+    quarantineRes3 = strict_gate.route(
+        ParseResult("test", lowConfTimestamp, "raw line", 13)
+    )
     assert isinstance(quarantineRes3, QuarantineEntry)
     assert "confidence" in quarantineRes3.reason

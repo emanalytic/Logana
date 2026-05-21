@@ -34,11 +34,11 @@ All test fixtures are **real** [LogHub](https://github.com/logpai/loghub) sample
 Quick reproduce:
 
 ```bash
-poetry run python scripts/benchmark_fixtures.py
+poetry run python scripts/benchmarkFixtures.py
 poetry run pytest -q tests/integration/testLoghubCorpus.py
 ```
 
-**Headline results:** **Excellent** on OpenStack; **strong** on Apache, Linux, OpenSSH; **partial** on HDFS/HealthApp; **not supported yet** on Spark and Proxifier (100% quarantine until parsers are added).
+**Headline results:** **In scope** for OpenStack, Apache, Linux, OpenSSH (and mostly Hadoop). **Out of scope** for Spark, Proxifier, and HealthApp — we document that honestly instead of adding a parser per LogHub file. See [LOGHUB.md](tests/fixtures/LOGHUB.md) for why.
 
 ---
 
@@ -278,6 +278,7 @@ poetry run logana [OPTIONS] FILE_PATH
 | `--reference-date` | *(none)* | `YYYY-MM-DD` anchor when syslog lines have **no year** |
 | `--encoding` | `utf-8` | File encoding: `utf-8`, `utf-8-sig`, `latin-1`, etc. |
 | `--allow-synthetic-timestamps` | off | Last resort: assign weak “ingestion time” when no timestamp is found |
+| `--profile` | `pragmatic` | `pragmatic` (timestamp-only quarantine), `strict` (all fields), `forensics` (synthetic time) |
 | `-h`, `--help` | | Show help |
 
 ### Commands you will use often
@@ -332,7 +333,7 @@ See `tests/fixtures/README.md` (index) and **[tests/fixtures/LOGHUB.md](tests/fi
 poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
 poetry run logana tests/fixtures/Linux_2k.log --reference-date 2004-06-15
 poetry run logana tests/fixtures/OpenSSH_2k.log --log-timezone UTC
-poetry run python scripts/benchmark_fixtures.py
+poetry run python scripts/benchmarkFixtures.py
 ```
 
 ---
@@ -439,7 +440,7 @@ Layout:
 Log-Analyzer/
 ├── ANSWERS.md           # submission Q&A
 ├── pyproject.toml       # Poetry config and CLI entry point
-├── scripts/             # benchmark_fixtures.py
+├── scripts/             # benchmarkFixtures.py
 ├── src/logana/          # package (cli, pipeline, parsers, analytics, output)
 └── tests/fixtures/      # LogHub real-world logs + LOGHUB.md results
 ```

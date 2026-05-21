@@ -74,6 +74,14 @@ def _safeEcho(text: str) -> None:
     default=False,
     help="Assign low-confidence ingestion time when no timestamp is found.",
 )
+@click.option(
+    "--profile",
+    "profile",
+    type=click.Choice(["strict", "pragmatic", "forensics"], case_sensitive=False),
+    default="pragmatic",
+    show_default=True,
+    help="Quarantine strictness: strict (all fields), pragmatic (timestamp only), forensics (synthetic time).",
+)
 def main(
     file_path: str,
     outputFormat: str,
@@ -83,6 +91,7 @@ def main(
     referenceDate: Optional[click.DateTime],
     encoding: str,
     allowSyntheticTimestamps: bool,
+    profile: str,
 ) -> Optional[int]:
     """Analyze a log file and print streaming analytics."""
     ref = referenceDate.date() if referenceDate else None
@@ -93,6 +102,7 @@ def main(
         referenceDate=ref,
         encoding=encoding,
         allowSyntheticTimestamps=allowSyntheticTimestamps,
+        profile=profile.lower(),
     )
 
     if outputFormat.lower() == "dashboard":

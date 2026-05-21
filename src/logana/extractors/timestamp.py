@@ -34,6 +34,15 @@ JAVA_BRACKET_RE = re.compile(
 )
 EPOCH_RE = re.compile(r'\b(\d{10}|\d{13})\b')
 EPOCH_FLOAT_RE = re.compile(r'\b(\d{10})\.(\d{1,6})\b')
+COMPACT_PIPE_TS_RE = re.compile(
+    r'\b(\d{8})-(\d{2}):(\d{2}):(\d{2}):(\d{3})\b'
+)
+BRACKET_WALL_TS_RE = re.compile(
+    r'\[(\d{1,2})\.(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\]'
+)
+SHORT_SLASH_YEAR_TS_RE = re.compile(
+    r'\b(\d{2})/(\d{2})/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})\b'
+)  # YY/MM/DD (common in Java service logs)
 
 MONTH_MAP = {
     'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
@@ -59,9 +68,12 @@ class TimestampExtractor(BaseExtractor[datetime]):
             self._try_iso8601(text),
             self._try_apache_error(text),
             self._try_java_bracket(text),
+            self._try_compact_pipe(text),
             self._try_plain(text),
             self._try_clf(text),
             self._try_hdfs(text),
+            self._try_bracket_wall(text),
+            self._try_short_slash_year(text),
             self._try_syslog(text),
             self._try_epoch_float(text),
             self._try_epoch(text),
@@ -135,6 +147,68 @@ class TimestampExtractor(BaseExtractor[datetime]):
             hour, minute, second = (int(x) for x in time_part.split(":"))
             dt = datetime(int(year), month, int(day), hour, minute, second)
             return (dt, 0.92, match.group(0), TIMESTAMP_SOURCE_LOCAL)
+        except ValueError:
+            return None
+
+    def _try_compact_pipe(self, cleaned: str) -> Optional[Tuple[datetime, float, str, str]]:
+        match = COMPACT_PIPE_TS_RE.search(cleaned)
+        if not match:
+            return None
+        date_part, hour, minute, second, millis = match.groups()
+        try:
+            year = int(date_part[:4])
+            month = int(date_part[4:6])
+            day = int(date_part[6:8])
+            micro = int(millis) * 1000
+            dt = datetime(
+                year,
+                month,
+                day,
+                int(hour),
+                int(minute),
+                int(second),
+                micro,
+            )
+            return (dt, 0.84, match.group(0), TIMESTAMP_SOURCE_LOCAL)
+        except ValueError:
+            return None
+
+    def _try_bracket_wall(self, cleaned: str) -> Optional[Tuple[datetime, float, str, str]]:
+        match = BRACKET_WALL_TS_RE.search(cleaned)
+        if not match:
+            return None
+        month, day, hour, minute, second = match.groups()
+        try:
+            year = self.time_context.reference_year or datetime.now().year
+            dt = datetime(
+                year,
+                int(month),
+                int(day),
+                int(hour),
+                int(minute),
+                int(second),
+            )
+            return (dt, 0.72, match.group(0), TIMESTAMP_SOURCE_LOCAL)
+        except ValueError:
+            return None
+
+    def _try_short_slash_year(self, cleaned: str) -> Optional[Tuple[datetime, float, str, str]]:
+        match = SHORT_SLASH_YEAR_TS_RE.search(cleaned)
+        if not match:
+            return None
+        year2, month, day, hour, minute, second = match.groups()
+        try:
+            yy = int(year2)
+            year = 2000 + yy if yy < 70 else 1900 + yy
+            dt = datetime(
+                year,
+                int(month),
+                int(day),
+                int(hour),
+                int(minute),
+                int(second),
+            )
+            return (dt, 0.78, match.group(0), TIMESTAMP_SOURCE_LOCAL)
         except ValueError:
             return None
 

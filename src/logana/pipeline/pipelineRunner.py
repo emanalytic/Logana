@@ -4,6 +4,7 @@ from logana.analytics.accumulatorSet import AccumulatorSet
 from logana.pipeline.pipelineConfig import PipelineConfig
 from logana.pipeline.lineBoundary import LineBoundaryDetector
 from logana.pipeline.parserDispatch import ParserDispatch
+from logana.pipeline.fileSniff import sniffReferenceYear
 from logana.pipeline.quarantineGate import QuarantineGate
 from logana.pipeline.streamReader import streamReader
 
@@ -17,14 +18,21 @@ def runPipeline(
     """Runs ingest -> parse -> quarantine -> accumulators for one log file."""
     if accumulators is None:
         accumulators = AccumulatorSet(max_endpoints=config.maxEndpoints)
+    time_context = config.resolvedTimeContext()
+    if time_context.reference_year is None:
+        inferred = sniffReferenceYear(filePath, encoding=config.encoding)
+        if inferred is not None:
+            time_context.reference_year = inferred
+
     boundary = LineBoundaryDetector()
     dispatcher = ParserDispatch(
         quarantineThreshold=config.quarantineThreshold,
-        time_context=config.resolvedTimeContext(),
+        time_context=time_context,
     )
     gate = QuarantineGate(
-        quarantineThreshold=config.quarantineThreshold,
+        quarantine_threshold=config.quarantineThreshold,
         allow_synthetic_timestamps=config.allowSyntheticTimestamps,
+        profile=config.quarantineProfile,
     )
 
     contextBuffer: Deque[str] = deque(maxlen=config.contextLines)
