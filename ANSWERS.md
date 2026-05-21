@@ -73,7 +73,7 @@ poetry run pytest -q
 
 ---
 
-## 3. Real edge cases
+## 3.Edge cases
 
 Two situations that often appear in production logs and shaped how logana was built.
 
@@ -82,8 +82,7 @@ Two situations that often appear in production logs and shaped how logana was bu
 Application crashes and stack traces rarely fit on a single line. The first line usually has the timestamp and error message. Follow-up lines (`at …`, `Caused by:`, indented details) belong to the same failure but often have **no timestamp of their own**.
 If the tool treated every physical line as a separate event, you would get extra rows with missing times, wrong volume counts, and a misleading rejected rate.
 **What I did:** Before parsing, related lines are grouped into one chunk (stack continuations, indented blocks, and JSON objects that span multiple lines).
-**Limitation:** Only the header line typically has a trustworthy time. Follow-up lines may still be marked as rejected even though they belong to the same exception. Error stats on the header remain useful. See section 5.
-
+**Limitation:** Only the header line typically has a trustworthy time. Follow-up lines may still be marked as rejected even though they belong to the same exception. Error stats on the header remain useful. S
 ---
 
 ### B 
