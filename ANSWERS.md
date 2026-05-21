@@ -89,7 +89,7 @@ If the tool treated every physical line as a separate event, you would get extra
 ### B 
 A single outage is often visible in several shapes at once: access-style lines (failure in the HTTP status), JSON gateway lines (a soft level like WARN but status 5xx), syslog or load-balancer lines, and `key=value` application logs. A parser built for only one format would under-count the same incident.
 **What I did:** Detect the format per chunk, parse with the matching handler, normalize to the same eight fields, and fill gaps with a backup scan over the line when needed. For metrics, a row counts as an error if the log level indicates failure **or** the HTTP status is 500 or higher, so access logs and JSON gateways are judged the same way.
-**Limitation:** A line can legitimately say WARN while the status is 200; that should not count as an error. Only a bad level **or** status 5xx triggers the error bucket.
+**Limitation:** A line can legitimately say WARN while the status is 200 that should not count as an error. Only a bad level **or** status 5xx triggers the error bucket.
 
 ---
 
@@ -106,6 +106,7 @@ AI sped up typing and debugging. **Architecture, structure, and product choices 
 	
 - Inflated rejected % (stacks), login ERROR lines not counted, checkout latency 0 on CLF-heavy paths, historical syslog needs --reference-date.
 - Text logs only; one file per run; a wrong timezone flag produces wrong charts; XML and CEF in fixtures are expected to fail parsing.
+- Can add ai, but will do this later.
 
 ---
 
