@@ -17,15 +17,15 @@ poetry lock
 poetry install
 ```
 
-**Run on the sample log:**
+**Run on a real LogHub log:**
 
 ```bash
-poetry run logana app.log --log-timezone Asia/Karachi
-poetry run logana app.log --log-timezone Asia/Karachi --format dashboard
-poetry run logana app.log --log-timezone Asia/Karachi --format json > report.json
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format json > report.json
 ```
 
-`--log-timezone` matters for `app.log` because many lines use local time with `+0500` or no offset. Pick the zone where the servers wrote the log (here: `Asia/Karachi`).
+**Evaluation results:** [tests/fixtures/LOGHUB.md](tests/fixtures/LOGHUB.md)
 
 **Old syslog files with no year** (see `tests/fixtures/Linux_2k.log`):
 
@@ -114,6 +114,6 @@ AI sped up typing and debugging. **Architecture, structure, and product choices 
 
 ```bash
 poetry install
-poetry run logana app.log --log-timezone Asia/Karachi
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
 poetry run pytest -q
 ```

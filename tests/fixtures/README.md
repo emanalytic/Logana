@@ -1,18 +1,21 @@
-# Test fixtures
+# Test fixtures (LogHub only)
 
-| File | Format | Notes |
-|------|--------|-------|
-| `complex.log` | Mixed (CLF, JSON, syslog, logfmt, stack trace) | Primary integration sample |
-| `sample1.log` | Mixed app logs | Similar to `complex.log` |
-| `sample2.log` | CLF access log (synthetic) | Best for endpoint/latency dashboard checks |
-| `sample3.log` | Format edge cases | Multi-line JSON, TSV, epoch, bracketed logs |
-| `sample4.log` | IIS W3C + XML + CEF | IIS lines parse; XML/CEF are expected quarantine |
-| `Apache_2k.log` | Apache error log (2005) | Use `--reference-date 2005-12-04` if syslog year drifts |
-| `Linux_2k.log` | Linux syslog (2004) | Use `--reference-date 2004-06-15` for correct years |
+All files here are **2,000-line samples** from the public [LogHub](https://github.com/logpai/loghub) dataset — real production-style logs, not synthetic samples.
 
-Example:
+**Evaluation write-up:** [LOGHUB.md](LOGHUB.md) — parse rates, error detection, and what works vs what does not.
+
+| File | Run hint |
+|------|----------|
+| `OpenStack_2k.log` | `poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC` |
+| `Linux_2k.log` | add `--reference-date 2004-06-15` |
+| `Apache_2k.log` | add `--reference-date 2005-12-04` |
+| `OpenSSH_2k.log` | `--log-timezone UTC` |
+| `HDFS_2k.log`, `Hadoop_2k.log`, `HealthApp_2k.log` | `--log-timezone UTC` |
+
+Re-run the benchmark table:
 
 ```bash
-poetry run logana tests/fixtures/sample2.log --format dashboard
-poetry run logana tests/fixtures/Linux_2k.log --reference-date 2004-06-15
+poetry run python scripts/benchmark_fixtures.py
 ```
+
+Tests: `tests/integration/testLoghubCorpus.py`

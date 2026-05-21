@@ -18,9 +18,26 @@ Point it at one log file. It reads the file line by line (it does **not** load t
 
 **Metrics include:** parse success vs quarantine rate, error rate over time (with spike detection), p50/p95/p99 latency, per-endpoint volume and errors, repeating error patterns (clustered), format drift when the log style changes mid-file, and field-level parse quality.
 
-**Sample log:** `app.log` in the repo root (mixed Apache-style, JSON, syslog, and app lines — good for a first run).
+**Try it on real logs:** `tests/fixtures/OpenStack_2k.log` (LogHub nova API — 0% quarantine in our evaluation).
 
 **Grading / Q&A:** see **[ANSWERS.md](ANSWERS.md)** for stack choices, edge cases, and AI usage notes.
+
+---
+
+## Evaluation on real logs
+
+All test fixtures are **real** [LogHub](https://github.com/logpai/loghub) samples (not synthetic `sample*.log` files). Full parse rates, error detection, per-system verdicts, and known gaps are documented here:
+
+**[tests/fixtures/LOGHUB.md](tests/fixtures/LOGHUB.md)** — benchmark table, per-file analysis, recommended CLI flags.
+
+Quick reproduce:
+
+```bash
+poetry run python scripts/benchmark_fixtures.py
+poetry run pytest -q tests/integration/testLoghubCorpus.py
+```
+
+**Headline results:** **Excellent** on OpenStack; **strong** on Apache, Linux, OpenSSH; **partial** on HDFS/HealthApp; **not supported yet** on Spark and Proxifier (100% quarantine until parsers are added).
 
 ---
 
@@ -234,9 +251,9 @@ poetry install
 ### 3. Run on the sample log
 
 ```bash
-poetry run logana app.log --log-timezone Asia/Karachi
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
 
-poetry run logana app.log --log-timezone Asia/Karachi --format dashboard
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
 
 ```
 
@@ -267,19 +284,19 @@ poetry run logana [OPTIONS] FILE_PATH
 **Default text report**
 
 ```bash
-poetry run logana app.log --log-timezone Asia/Karachi
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
 ```
 
 **Live terminal dashboard**
 
 ```bash
-poetry run logana app.log --log-timezone Asia/Karachi --format dashboard
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
 ```
 
 **JSON for tooling**
 
 ```bash
-poetry run logana app.log --log-timezone Asia/Karachi --format json > report.json
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format json > report.json
 ```
 
 **Older syslog without a year** (example: Linux_2k fixture)
@@ -291,13 +308,13 @@ poetry run logana tests/fixtures/Linux_2k.log --reference-date 2004-06-15
 **Stricter parsing** (fewer quarantines, more rejects)
 
 ```bash
-poetry run logana app.log --quarantine-threshold 0.5
+poetry run logana tests/fixtures/OpenSSH_2k.log --quarantine-threshold 0.5 --log-timezone UTC
 ```
 
 **Windows-legacy encoding**
 
 ```bash
-poetry run logana app.log --encoding latin-1 --log-timezone local
+poetry run logana tests/fixtures/Linux_2k.log --encoding latin-1 --reference-date 2004-06-15
 ```
 
 **Help**
@@ -306,14 +323,15 @@ poetry run logana app.log --encoding latin-1 --log-timezone local
 poetry run logana --help
 ```
 
-### Test fixture examples
+### LogHub fixture examples
 
-See `tests/fixtures/README.md` for what each file contains.
+See `tests/fixtures/README.md` (index) and **[tests/fixtures/LOGHUB.md](tests/fixtures/LOGHUB.md)** (results).
 
 ```bash
-poetry run logana tests/fixtures/sample2.log --format dashboard
-poetry run logana tests/fixtures/complex.log --log-timezone UTC
-poetry run logana tests/fixtures/hdfs_sample.log
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
+poetry run logana tests/fixtures/Linux_2k.log --reference-date 2004-06-15
+poetry run logana tests/fixtures/OpenSSH_2k.log --log-timezone UTC
+poetry run python scripts/benchmark_fixtures.py
 ```
 
 ---
@@ -372,7 +390,7 @@ The console script is defined in `pyproject.toml` as `logana.cli.cliMain:main`.
 Try:
 
 ```bash
-poetry run logana app.log --encoding utf-8-sig
+poetry run logana tests/fixtures/Apache_2k.log --encoding utf-8-sig --reference-date 2005-12-04
 ```
 
 The CLI also replaces unprintable glyphs on limited Windows consoles when possible.
@@ -418,11 +436,11 @@ Layout:
 
 ```text
 Log-Analyzer/
-├── app.log              # sample mixed log
 ├── ANSWERS.md           # submission Q&A
 ├── pyproject.toml       # Poetry config and CLI entry point
+├── scripts/             # benchmark_fixtures.py
 ├── src/logana/          # package (cli, pipeline, parsers, analytics, output)
-└── tests/               # pytest suite and fixtures
+└── tests/fixtures/      # LogHub real-world logs + LOGHUB.md results
 ```
 
 ---
