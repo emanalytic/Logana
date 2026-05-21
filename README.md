@@ -24,7 +24,7 @@ Point it at one log file. It reads the file line by line (it does **not** load t
 
 ## Where the design came from
 
-logana is **not** a mini Splunk or ELK. Those systems solve search at scale across many hosts. This project solves **one file, one pass, bounded RAM** — closer to what you do with `grep`, `awk`, and `tail`, but with structure-aware parsing and rolling stats.
+logana is **not** a mini Splunk or ELK. Those systems solve search at scale across many hosts. This project solves **one file, one pass, bounded RAM** closer to what you do with `grep`, `awk`, and `tail`, but with structure-aware parsing and rolling stats.
 
 | Inspiration | How it shows up here |
 |-------------|----------------------|
