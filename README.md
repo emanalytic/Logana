@@ -26,7 +26,7 @@ Point it at one log file. It reads the file line by line (it does **not** load t
 
 ## Where the design came from
 
-logana is **not** a mini Splunk or ELK. Those systems solve search at scale across many hosts. This project solves **one file, one pass, bounded RAM** — closer to what you do with `grep`, `awk`, and `tail`, but with structure-aware parsing and rolling stats.
+logana is **not** a mini Splunk or ELK. Those systems solve search at scale across many hosts. This project solves **one file, one pass, bounded RAM** closer to what you do with `grep`, `awk`, and `tail`, but with structure-aware parsing and rolling stats.
 
 | Inspiration | How it shows up here |
 |-------------|----------------------|
@@ -233,6 +233,9 @@ poetry install
 
 ```bash
 poetry run logana app.log --log-timezone Asia/Karachi
+
+poetry run logana app.log --log-timezone Asia/Karachi --format dashboard
+
 ```
 
 > **Tip:** If timestamps in your file are “local wall clock” in a specific region, set `--log-timezone` to that IANA name (e.g. `America/Chicago`, `Asia/Karachi`, `UTC`, or `local`).
