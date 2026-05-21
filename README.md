@@ -4,6 +4,8 @@
 
 Point it at one log file. It reads the file line by line (it does **not** load the whole file into memory), figures out mixed formats on the fly, and prints error rates, latency percentiles, top endpoints, error clusters, and quarantine reasons.
 
+**Design diagrams:** [Architecture](#architecture) (end-to-end flow + layers). Renders on GitHub; or paste the Mermaid blocks into [mermaid.live](https://mermaid.live) to export PNG.
+
 ---
 
 ## What you get
@@ -43,14 +45,109 @@ logana is **not** a mini Splunk or ELK. Those systems solve search at scale acro
 
 One file flows through a fixed pipeline. Analytics run **per event** as lines are processed, not after loading everything.
 
+### Quick view
+
 ```mermaid
 flowchart LR
-  A[Log file on disk] --> B[Stream reader]
-  B --> C[Line boundary detector]
-  C --> D[Format probe + parsers]
-  D --> E[Quarantine gate]
-  E --> F[Accumulator set]
-  F --> G[Summary / JSON / Dashboard]
+  A[Log file] --> B[Read & group lines]
+  B --> C[Parse & extract fields]
+  C --> D{Trust OK?}
+  D -->|yes| E[Update stats]
+  D -->|no| F[Rejected bucket]
+  E --> G[Summary / JSON / Dashboard]
+  F --> G
+```
+
+### Design diagram (end-to-end)
+
+```mermaid
+flowchart TB
+  subgraph input [Input]
+    F[Log file on disk]
+    CLI[CLI flags: timezone, threshold, format]
+  end
+
+  subgraph pipeline [Pipeline — one pass]
+    SR[streamReader<br/>read line by line]
+    LB[lineBoundary<br/>glue stacks & multi-line JSON]
+    FP[formatProbe<br/>guess JSON / CLF / syslog / KV / …]
+    P[Parsers + tokenExtractor fallback<br/>merge best fields per column]
+    EX[Extractors<br/>time, IP, HTTP fields]
+    QG{quarantineGate<br/>valid time + confidence?}
+  end
+
+  subgraph accepted [Accepted row]
+    EV[LogEvent<br/>8 fields, each Known / Unknown / Absent]
+  end
+
+  subgraph rejected [Rejected row]
+    QN[QuarantineEntry<br/>reason + sample text]
+  end
+
+  subgraph analytics [Streaming analytics — bounded RAM]
+    ACC[accumulatorSet]
+    ER[error rate + spikes]
+    LAT[latency p50/p95/p99]
+    EP[endpoints / activities]
+    EC[error clusters]
+    QT[quarantine stats]
+    OTH[format drift, quality, keywords, time span]
+  end
+
+  subgraph output [Output]
+    SUM[summary text]
+    JSON[JSON export]
+    DASH[Rich dashboard]
+  end
+
+  CLI --> SR
+  F --> SR
+  SR --> LB --> FP --> P --> EX --> QG
+  QG -->|yes| EV --> ACC
+  QG -->|no| QN --> ACC
+  ACC --> ER & LAT & EP & EC & QT & OTH
+  ACC --> SUM & JSON & DASH
+```
+
+### Design diagram (layers)
+
+```mermaid
+flowchart LR
+  subgraph L1 [CLI]
+    M[cliMain]
+  end
+
+  subgraph L2 [Pipeline]
+    R[pipelineRunner]
+    C[pipelineConfig + timeContext]
+  end
+
+  subgraph L3 [Parsing]
+    PA[parsers]
+    TK[tokenExtractor]
+    EXT[extractors]
+  end
+
+  subgraph L4 [Models]
+    FS[fieldState]
+    LE[logEvent]
+    QE[quarantineEntry]
+  end
+
+  subgraph L5 [Analytics]
+    AS[accumulatorSet]
+  end
+
+  subgraph L6 [Output]
+    OUT[summary / json / dashboard]
+  end
+
+  M --> R
+  C --> R
+  R --> PA & TK & EXT
+  PA & TK --> FS
+  FS --> LE & QE
+  LE & QE --> AS --> OUT
 ```
 
 ```text
