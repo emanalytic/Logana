@@ -4,7 +4,9 @@
 
 Point it at one log file. It reads the file line by line (it does **not** load the whole file into memory), figures out mixed formats on the fly, and prints error rates, latency percentiles, top endpoints, error clusters, and quarantine reasons.
 
-**Design diagrams:** [Architecture](#architecture) (end-to-end flow + layers). Renders on GitHub; or paste the Mermaid blocks into [mermaid.live](https://mermaid.live) to export PNG.
+**Design diagrams:** [Architecture](#architecture) (end-to-end flow + layers).
+**Grading / Q&A:** see **[ANSWERS.md](ANSWERS.md)** for stack choices, edge cases, and AI usage notes.
+
 
 ---
 
@@ -20,13 +22,12 @@ Point it at one log file. It reads the file line by line (it does **not** load t
 
 **Try it on real logs:** `tests/fixtures/OpenStack_2k.log` (LogHub nova API — 0% quarantine in our evaluation).
 
-**Grading / Q&A:** see **[ANSWERS.md](ANSWERS.md)** for stack choices, edge cases, and AI usage notes.
 
 ---
 
 ## Evaluation on real logs
 
-All test fixtures are **real** [LogHub](https://github.com/logpai/loghub) samples (not synthetic `sample*.log` files). Full parse rates, error detection, per-system verdicts, and known gaps are documented here:
+All test fixtures are **real** [LogHub](https://github.com/logpai/loghub) samples. Full parse rates, error detection, per-system verdicts, and known gaps are documented here:
 
 **[tests/fixtures/LOGHUB.md](tests/fixtures/LOGHUB.md)** — benchmark table, per-file analysis, recommended CLI flags.
 
