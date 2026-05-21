@@ -53,7 +53,7 @@ poetry run python scripts/benchmarkFixtures.py
 poetry run pytest -q tests/integration/testLoghubCorpus.py
 ```
 
-On the current codebase, OpenStack, Apache, Linux, OpenSSH, Hadoop, and HDFS are **strong fits** (0% quarantine under default settings). Spark and Proxifier are **partial** fits (lines are accepted, but not every field or calendar year is trustworthy). HealthApp is **mixed** (~21% quarantine on lines without a parseable timestamp). See LOGHUB.md for the full table and what each label means.
+On the current codebase, OpenStack, Apache, Linux, OpenSSH, Hadoop, HDFS, and Zookeeper are **strong fits** (0% quarantine under default settings). Spark and Proxifier are **partial** fits (lines are accepted, but not every field or calendar year is trustworthy). HealthApp is **mixed** (~21% quarantine on lines without a parseable timestamp). See LOGHUB.md for the full table and what each label means.
 
 ---
 

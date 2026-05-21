@@ -35,6 +35,11 @@ LOGHUB_CASES = [
         {"minEvents": 1500, "maxQuarantineRate": 0.25, "minLatencySamples": 0},
     ),
     (
+        "Zookeeper_2k.log",
+        {},
+        {"minEvents": 1900, "maxQuarantineRate": 0.02, "minLatencySamples": 0},
+    ),
+    (
         "HDFS_2k.log",
         {},
         {"minEvents": 900, "maxQuarantineRate": 0.55, "minLatencySamples": 0},

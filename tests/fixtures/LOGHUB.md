@@ -1,6 +1,6 @@
 # LogHub benchmark results
 
-This document explains how **logana** performs on real log files from the public [LogHub](https://github.com/logpai/loghub) dataset. Each fixture file contains 2,000 lines from a different system (Apache, Linux syslog, OpenStack, Spark, and others).
+This document explains how **logana** performs on real log files from the public [LogHub](https://github.com/logpai/loghub) dataset. Each fixture file contains 2,000 lines from a different system (Apache, Linux syslog, OpenStack, Zookeeper, Spark, and others).
 
 The purpose of these tests is **evaluation**, not a promise to parse every format perfectly.
 
@@ -47,6 +47,7 @@ logana does not maintain a custom parser for each LogHub filename. Instead it us
 | **Linux_2k.log** | 100% | 0% | ~27% | **Strong fit** — syslog and key=value lines |
 | **OpenSSH_2k.log** | 100% | 0% | ~55% | **Strong fit** — many failed logins are counted as errors by design |
 | **Hadoop_2k.log** | 100% | 0% | ~8% | **Strong fit** |
+| **Zookeeper_2k.log** | 100% | 0% | ~1% | **Strong fit** — Java `YYYY-MM-DD HH:MM:SS,mmm` prefix; WARN-heavy quorum logs |
 | **HDFS_2k.log** | 100% | 0% | ~0% | **Strong fit** — HDFS `YYMMDD` timestamps |
 | **Spark_2k.log** | 100% | 0% | ~1% | **Partial** — timestamps parse via `YY/MM/DD`; Spark-specific fields are not modeled |
 | **Proxifier_2k.log** | 100% | 0% | ~7% | **Partial** — bracket timestamps parse; inferred calendar year can be wrong |
@@ -91,7 +92,7 @@ poetry run logana tests/fixtures/Spark_2k.log --profile forensics
 
 | Goal | Suggested approach |
 |------|-------------------|
-| Compare logana to another tool fairly | Separate **strong fit** files from **partial** or **mixed** ones; do not expect one parse percentage across all nine files. |
+| Compare logana to another tool fairly | Separate **strong fit** files from **partial** or **mixed** ones; do not expect one parse percentage across all fixture files. |
 | Tighten data quality | Use `--profile strict` or raise `--quarantine-threshold`. |
 | Accept more lines for exploration | Use `--profile forensics` and read the summary warnings about synthetic timestamps. |
 | Fix syslog years | Pass `--reference-date YYYY-MM-DD`, or rely on automatic sniffing plus anchors learned while reading the file. |
@@ -103,6 +104,7 @@ poetry run logana tests/fixtures/Spark_2k.log --profile forensics
 
 ```bash
 poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
+poetry run logana tests/fixtures/Zookeeper_2k.log --log-timezone UTC
 poetry run logana tests/fixtures/Linux_2k.log --reference-date 2004-06-15
 poetry run python scripts/benchmarkFixtures.py
 ```
@@ -111,4 +113,4 @@ poetry run python scripts/benchmarkFixtures.py
 
 ## Automated tests
 
-`tests/integration/testLoghubCorpus.py` checks minimum acceptance rates and quarantine ceilings for files i considered in scope. Tests for Spark and Proxifier only verify that the pipeline processes all 2,000 lines without crashing—they do not require 100% quarantine, because generic timestamp rules may accept those lines.
+`tests/integration/testLoghubCorpus.py` checks minimum acceptance rates and quarantine ceilings for in-scope files (including Zookeeper). Tests for Spark and Proxifier only verify that the pipeline processes all 2,000 lines without crashing—they do not require 100% quarantine, because generic timestamp rules may accept those lines.
