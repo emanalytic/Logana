@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Generic, TypeVar, Union, Optional
+from dataclasses import dataclass, field
+from typing import Generic, TypeVar, Union, Optional, Dict
 
 T = TypeVar('T')
 
@@ -9,6 +9,7 @@ class Known(Generic[T]):
     value: T
     confidence: float   # 0.0 to 1.0
     rawToken: str       # The original substring from the log line
+    meta: Optional[Dict[str, str]] = field(default=None)
 
 @dataclass(frozen=True)
 class Absent:
@@ -22,7 +23,6 @@ class Unknown(Generic[T]):
     bestGuess: Optional[T] = None
     guessConfidence: float = 0.0
 
-# Type alias representing any field state
 FieldState = Union[Known[T], Absent, Unknown[T]]
 
 def isKnown(state: FieldState[T]) -> bool:
