@@ -211,6 +211,8 @@ The log on disk can be gigabytes; working set should not grow with every line fo
 - **[Poetry](https://python-poetry.org/docs/#installation)** for install and runs (recommended)
 - **Windows / macOS / Linux** — tested with Poetry; CLI handles consoles that lack Unicode glyphs
 
+**Libraries** (installed via Poetry): `click`, `rich`, `tzdata`, `python-dateutil`, `drain3`, `orjson`, `logfmt`, `apachelogs`, `pydantic`, `plotext`. T-Digest percentiles use the in-tree implementation (the PyPI `tdigest` package needs a C++ toolchain on Windows).
+
 ---
 
 ## Install and run

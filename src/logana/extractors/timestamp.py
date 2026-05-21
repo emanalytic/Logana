@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 from logana.models.fieldState import FieldState, Known, Unknown, Absent
 from logana.extractors.extractorBase import BaseExtractor
 from logana.pipeline.timeContext import PipelineTimeContext, defaultTimeContext
+from logana.utils.dateutilParse import tryFuzzyTimestamp
 from logana.utils.timeUtils import (
     TimestampNormalizer,
     TIMESTAMP_SOURCE_EPOCH,
@@ -64,6 +65,7 @@ class TimestampExtractor(BaseExtractor[datetime]):
             self._try_syslog(text),
             self._try_epoch_float(text),
             self._try_epoch(text),
+            self._try_dateutil(text),
         ]
 
         best: Optional[Tuple[datetime, float, str, str]] = None
@@ -248,6 +250,24 @@ class TimestampExtractor(BaseExtractor[datetime]):
             return (dt, conf, matched_text, TIMESTAMP_SOURCE_EPOCH)
         except (ValueError, OSError, OverflowError):
             return None
+
+    def _try_dateutil(self, cleaned: str) -> Optional[Tuple[datetime, float, str, str]]:
+        if cleaned.startswith("<") and len(cleaned) > 2 and cleaned[1].isdigit():
+            return None
+        if self._try_syslog(cleaned) is not None:
+            return None
+        ref_year = self.time_context.reference_year or datetime.now().year
+        default = datetime(ref_year, 1, 1, tzinfo=None)
+        parsed = tryFuzzyTimestamp(cleaned, default=default)
+        if parsed is None:
+            return None
+        dt, raw = parsed
+        prov = (
+            TIMESTAMP_SOURCE_UTC
+            if self.time_context.naive_policy == "utc"
+            else TIMESTAMP_SOURCE_LOCAL
+        )
+        return (dt, 0.68, raw[:80], prov)
 
     def _try_epoch_float(self, cleaned: str) -> Optional[Tuple[datetime, float, str, str]]:
         match = EPOCH_FLOAT_RE.search(cleaned)

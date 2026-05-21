@@ -64,4 +64,3 @@ class Parser(ABC):
         """Parses a log line group and returns a ParseResult."""
         
         pass
-    def extract(self, )

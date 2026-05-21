@@ -4,27 +4,14 @@ from logana.models.fieldState import FieldState, Known, Absent
 from logana.parsers.parserBase import Parser, ParseResult
 from logana.parsers.fieldKit import ParserFieldKit, DEFAULT_KEY_MAPPINGS
 from logana.pipeline.timeContext import PipelineTimeContext, defaultTimeContext
+from logana.utils.jsonLoad import loadJsonObject
 
 KEY_MAPPINGS = DEFAULT_KEY_MAPPINGS
 
+
 def extractJsonObject(text: str) -> Tuple[Any, List[str]]:
     """Extracts a JSON object from a raw line, tolerating non-JSON prefixes."""
-    stripped = text.strip()
-    decoder = json.JSONDecoder()
-    startIdx = stripped.find('{')
-    if startIdx < 0:
-        raise json.JSONDecodeError("No JSON object start found", stripped, 0)
-
-    data, endIdx = decoder.raw_decode(stripped[startIdx:])
-    warnings: List[str] = []
-    if startIdx > 0:
-        warnings.append("Ignored non-JSON prefix before object payload")
-
-    trailing = stripped[startIdx + endIdx:].strip()
-    if trailing:
-        warnings.append("Ignored trailing text after JSON object payload")
-
-    return data, warnings
+    return loadJsonObject(text)
 
 class JsonParser(Parser):
     """Parses JSON-formatted log lines, mapping common keys to standard log fields."""

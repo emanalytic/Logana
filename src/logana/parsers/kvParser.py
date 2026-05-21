@@ -1,5 +1,6 @@
 import re
 from typing import Dict
+from logfmt.parser import parse_line as parse_logfmt_line
 from logana.models.fieldState import FieldState, Known, Absent
 from logana.parsers.parserBase import Parser, ParseResult
 from logana.parsers.fieldKit import ParserFieldKit, DEFAULT_KEY_MAPPINGS
@@ -21,6 +22,9 @@ class KvParser(Parser):
         self.kit = ParserFieldKit(time_context or defaultTimeContext())
 
     def _parseLogfmt(self, cleaned: str) -> Dict[str, str]:
+        parsed = parse_logfmt_line(cleaned)
+        if parsed:
+            return {k: str(v) for k, v in parsed.items()}
         data: Dict[str, str] = {}
         matches = KV_PATTERN.findall(cleaned)
         for match in matches:

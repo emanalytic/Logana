@@ -1,34 +1,37 @@
-from dataclasses import dataclass
 from datetime import date
-from typing import Optional
+from typing import Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from logana.pipeline.timeContext import PipelineTimeContext, defaultTimeContext
 from logana.utils.timeUtils import parseTimezone
 
 
-@dataclass
-class PipelineConfig:
+class PipelineConfig(BaseModel):
     """Runtime options for log ingestion and analysis."""
 
-    quarantineThreshold: float = 0.3
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    quarantineThreshold: float = Field(default=0.3, ge=0.0, le=1.0)
     timeContext: Optional[PipelineTimeContext] = None
     encoding: str = "utf-8"
-    contextLines: int = 5
+    contextLines: int = Field(default=5, ge=0)
     allowSyntheticTimestamps: bool = False
-    maxEndpoints: int = 200
+    maxEndpoints: int = Field(default=200, ge=1)
 
     @classmethod
     def fromCli(
         cls,
         quarantineThreshold: float = 0.3,
         logTimezone: str = "local",
-        naiveTimestamps: str = "local",
+        naiveTimestamps: Literal["local", "utc"] = "local",
         referenceDate: Optional[date] = None,
         encoding: str = "utf-8",
         allowSyntheticTimestamps: bool = False,
     ) -> "PipelineConfig":
         ctx = PipelineTimeContext(
             default_tz=parseTimezone(logTimezone),
-            naive_policy=naiveTimestamps,  # type: ignore[arg-type]
+            naive_policy=naiveTimestamps,
         )
         if referenceDate is not None:
             ctx.reference_year = referenceDate.year

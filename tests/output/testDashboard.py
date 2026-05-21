@@ -10,4 +10,7 @@ def test_dashboardLayoutRenders():
     dashboard.redrawInterval = 0.0
     dashboard.update()
     assert dashboard.layout["header"] is not None
+    assert dashboard.layout["alerts"] is not None
+    assert dashboard.layout["snapshot"] is not None
+    assert dashboard.layout["byVolume"] is not None
     assert dashboard.layout["footer"] is not None

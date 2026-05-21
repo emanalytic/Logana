@@ -7,7 +7,6 @@
 | `sample2.log` | CLF access log (synthetic) | Best for endpoint/latency dashboard checks |
 | `sample3.log` | Format edge cases | Multi-line JSON, TSV, epoch, bracketed logs |
 | `sample4.log` | IIS W3C + XML + CEF | IIS lines parse; XML/CEF are expected quarantine |
-| `hdfs_sample.log` | Hadoop HDFS (`YYMMDD HHMMSS`) | Needs no extra flags after parser support |
 | `Apache_2k.log` | Apache error log (2005) | Use `--reference-date 2005-12-04` if syslog year drifts |
 | `Linux_2k.log` | Linux syslog (2004) | Use `--reference-date 2004-06-15` for correct years |
 

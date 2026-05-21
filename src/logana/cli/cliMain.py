@@ -116,7 +116,12 @@ def _runWithDashboard(filePath: str, config: PipelineConfig) -> AccumulatorSet:
     dashboard.redrawInterval = 0.0
     dashboard.update()
 
-    with Live(dashboard.layout, refresh_per_second=10, transient=False) as live:
+    with Live(
+        dashboard.layout,
+        refresh_per_second=8,
+        transient=False,
+        vertical_overflow="visible",
+    ) as live:
         def onProgress() -> None:
             dashboard.update()
             live.update(dashboard.layout)
