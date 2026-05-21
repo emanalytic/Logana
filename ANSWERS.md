@@ -103,8 +103,8 @@ AI sped up typing and debugging. **Architecture, structure, and product choices 
 
 ## 5. Honest gaps
 
-- **Stack tails** — grouped with the error but often rejected for “no timestamp.”
-- **Next fix:** copy the time from the first line of the group onto stack follow-ups.
+	
+- Inflated rejected % (stacks), login ERROR lines not counted, checkout latency 0 on CLF-heavy paths, historical syslog needs --reference-date.
 - Text logs only; one file per run; a wrong timezone flag produces wrong charts; XML and CEF in fixtures are expected to fail parsing.
 
 ---
