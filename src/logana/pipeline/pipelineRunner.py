@@ -1,0 +1,43 @@
+from collections import deque
+from typing import Callable, Deque, Optional
+from logana.analytics.accumulatorSet import AccumulatorSet
+from logana.pipeline.pipelineConfig import PipelineConfig
+from logana.pipeline.lineBoundary import LineBoundaryDetector
+from logana.pipeline.parserDispatch import ParserDispatch
+from logana.pipeline.quarantineGate import QuarantineGate
+from logana.pipeline.streamReader import streamReader
+
+
+def runPipeline(
+    filePath: str,
+    config: PipelineConfig,
+    onProgress: Optional[Callable[[], None]] = None,
+    accumulators: Optional[AccumulatorSet] = None,
+) -> AccumulatorSet:
+    """Runs ingest -> parse -> quarantine -> accumulators for one log file."""
+    if accumulators is None:
+        accumulators = AccumulatorSet(max_endpoints=config.maxEndpoints)
+    boundary = LineBoundaryDetector()
+    dispatcher = ParserDispatch(
+        quarantineThreshold=config.quarantineThreshold,
+        time_context=config.resolvedTimeContext(),
+    )
+    gate = QuarantineGate(
+        quarantineThreshold=config.quarantineThreshold,
+        allow_synthetic_timestamps=config.allowSyntheticTimestamps,
+    )
+
+    contextBuffer: Deque[str] = deque(maxlen=config.contextLines)
+
+    for groupText, startLine in boundary.detectBoundaries(
+        streamReader(filePath, encoding=config.encoding)
+    ):
+        parseResult = dispatcher.dispatch(groupText, startLine)
+        context = list(contextBuffer)
+        routed = gate.route(parseResult, contextBefore=context)
+        accumulators.ingest(routed)
+        contextBuffer.append(groupText[:200])
+        if onProgress is not None:
+            onProgress()
+
+    return accumulators
