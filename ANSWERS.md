@@ -1,6 +1,6 @@
 # ANSWERS.md
 
-Short answers for reviewers. Full setup and architecture: [README.md](README.md).
+ Full setup and architecture: [README.md](README.md).
 
 ---
 
@@ -11,7 +11,7 @@ Short answers for reviewers. Full setup and architecture: [README.md](README.md)
 **Install once:**
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/emanalytic/Logana
 cd Log-Analyzer
 poetry lock
 poetry install
