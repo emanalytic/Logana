@@ -97,10 +97,10 @@ def main(
     ref = referenceDate.date() if referenceDate else None
     config = PipelineConfig.fromCli(
         quarantineThreshold=quarantineThreshold,
-        logTimezone=logTimezone,
+        logTimezone=logTimezone.strip(),
         naiveTimestamps=naiveTimestamps.lower(),
         referenceDate=ref,
-        encoding=encoding,
+        encoding=encoding.strip(),
         allowSyntheticTimestamps=allowSyntheticTimestamps,
         profile=profile.lower(),
     )

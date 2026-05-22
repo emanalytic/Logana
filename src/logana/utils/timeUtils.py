@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, tzinfo
 from typing import Optional, Tuple
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
 from logana.pipeline.timeContext import PipelineTimeContext, defaultTimeContext
 
@@ -87,13 +87,24 @@ def resolveLocalTimezone() -> tzinfo:
     return timezone.utc
 
 
+def _canonicalIana(name: str) -> Optional[str]:
+    """Case-insensitive IANA lookup; returns canonical name or None."""
+    key = name.strip().lower()
+    for tz in available_timezones():
+        if tz.lower() == key:
+            return tz
+    return None
+
+
 def parseTimezone(name: str) -> tzinfo:
     """Resolves an IANA timezone name, mapping 'local' to the host zone."""
+    name = name.strip()
     if name.lower() in ("local", "localtime", "system"):
         return resolveLocalTimezone()
     if name.upper() == "UTC":
         return timezone.utc
+    canonical = _canonicalIana(name)
     try:
-        return ZoneInfo(name)
+        return ZoneInfo(canonical or name)
     except Exception:
         return timezone.utc

@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import List, Sequence, Tuple
 
@@ -94,16 +95,27 @@ except ModuleNotFoundError:
         def __init__(self, *items):
             self.items = items
 
+def _stdout_needs_ascii() -> bool:
+    enc = (getattr(sys.stdout, "encoding", None) or "").lower().replace("_", "-")
+    return not enc or ("utf" not in enc and enc not in ("utf8",))
+
+
+_ASCII = _stdout_needs_ascii()
 _PANEL_PAD = (0, 1)
 _TABLE_BOX = box.SIMPLE_HEAD if RICH_AVAILABLE else None
-_SPARK_BLOCKS = "▁▂▃▄▅▆▇█"
+_SPARK_BLOCKS = "._:|#" if _ASCII else " "
 _SEVERITY_STYLE = {"alert": "bold red", "warn": "bold yellow", "info": "cyan"}
-_SEVERITY_ICON = {"alert": "!!", "warn": "!", "info": "·"}
+_SEVERITY_ICON = {"alert": "!!", "warn": "!", "info": "." if _ASCII else "·"}
+_GLYPH_ARROW = "->" if _ASCII else "→"
+_GLYPH_MID = " | " if _ASCII else " · "
+_GLYPH_DASH = "-" if _ASCII else "—"
+_GLYPH_UP = "^" if _ASCII else "▲"
+_GLYPH_DOWN = "v" if _ASCII else "▼"
 
 
 def _sparkline(values: Sequence[float], width: int = 16) -> str:
     if not values:
-        return "—"
+        return _GLYPH_DASH
     window = list(values[-width:])
     peak = max(window) or 1e-9
     chars: List[str] = []
@@ -161,7 +173,7 @@ def _time_span_line(acc: AccumulatorSet) -> Text:
         (f"{duration}", "bold white"),
         ("  from ", "dim"),
         (first[11:19] if len(first) > 19 else first, "cyan"),
-        (" → ", "dim"),
+        (f" {_GLYPH_ARROW} ", "dim"),
         (last[11:19] if len(last) > 19 else last, "cyan"),
     )
 
@@ -169,13 +181,13 @@ def _time_span_line(acc: AccumulatorSet) -> Text:
 def _format_mix(acc: AccumulatorSet, limit: int = 4) -> str:
     dist = acc.fileProfile.toDict().get("formatDistribution", {})
     if not dist:
-        return "—"
+        return _GLYPH_DASH
     total = sum(dist.values()) or 1
     parts = []
     for name, count in list(dist.items())[:limit]:
         pct = 100.0 * count / total
         parts.append(f"{name} {pct:.0f}%")
-    return " · ".join(parts)
+    return _GLYPH_MID.join(parts)
 
 
 class Dashboard:
@@ -265,7 +277,7 @@ class Dashboard:
             (" logana ", "bold white on blue"),
             ("  ", ""),
             (health, health_style),
-            ("  ·  ", "dim"),
+            (f"  {_GLYPH_MID.strip()}  ", "dim"),
             ("elapsed ", "dim"),
             (elapsed_str, "bold white"),
         )
@@ -277,12 +289,15 @@ class Dashboard:
     def _updateAlerts(self) -> None:
         insights = generateInsights(self.acc)[:4]
         if not insights:
-            body = Text("No issues flagged yet — keep watching as the file streams.", style="dim italic")
+            body = Text(
+                f"No issues flagged yet {_GLYPH_DASH} keep watching as the file streams.",
+                style="dim italic",
+            )
         else:
             rows: List[Text] = []
             for item in insights:
                 sev = item.get("severity", "info")
-                icon = _SEVERITY_ICON.get(sev, "·")
+                icon = _SEVERITY_ICON.get(sev, "." if _ASCII else "·")
                 style = _SEVERITY_STYLE.get(sev, "white")
                 rows.append(Text.assemble((f"{icon} ", style), (item["message"], style)))
             body = Group(*rows)
@@ -384,20 +399,29 @@ class Dashboard:
 
         top = self.acc.errorClusterer.getTopClusters(limit=5)
         if not top:
-            table.add_row("—", "—", "—", Text("No errors detected", style="dim italic"), "—")
+            table.add_row(
+                _GLYPH_DASH, _GLYPH_DASH, _GLYPH_DASH,
+                Text("No errors detected", style="dim italic"),
+                _GLYPH_DASH,
+            )
         else:
             for idx, cluster in enumerate(top):
                 msg = cluster.representative
                 if len(msg) > 64:
                     msg = msg[:61] + "..."
-                paths = ", ".join(sorted(cluster.endpoints)[:2]) or "—"
+                paths = ", ".join(sorted(cluster.endpoints)[:2]) or _GLYPH_DASH
                 if len(cluster.endpoints) > 2:
                     paths += f" +{len(cluster.endpoints) - 2}"
                 seen = cluster.lastSeen.strftime("%H:%M:%S")
                 table.add_row(str(idx + 1), f"{cluster.count:,}", seen, msg, paths)
 
         self.layout["errors"].update(
-            _panel(table, "Error patterns", "red", subtitle="Grouped by Drain3 — variables masked")
+            _panel(
+                table,
+                "Error patterns",
+                "red",
+                subtitle=f"Grouped by Drain3 {_GLYPH_DASH} variables masked",
+            )
         )
 
     def _endpoint_table(self, stats_list, empty_msg: str) -> Table:
@@ -409,7 +433,10 @@ class Dashboard:
         table.add_column("", width=10, justify="center")
 
         if not stats_list:
-            table.add_row(Text(empty_msg, style="dim italic"), "—", "—", "—", "—")
+            table.add_row(
+                Text(empty_msg, style="dim italic"),
+                _GLYPH_DASH, _GLYPH_DASH, _GLYPH_DASH, _GLYPH_DASH,
+            )
             return table
 
         for stat in stats_list:
@@ -419,16 +446,16 @@ class Dashboard:
             err_pct = stat.errorRate * 100.0
             err_style = "red" if err_pct >= 10 else "yellow" if err_pct > 0 else "green"
             if stat.trend == "DEGRADING":
-                trend = Text("▼ latency", style="red")
+                trend = Text(f"{_GLYPH_DOWN} latency", style="red")
             elif stat.trend == "IMPROVING":
-                trend = Text("▲ latency", style="green")
+                trend = Text(f"{_GLYPH_UP} latency", style="green")
             else:
-                trend = Text("—", style="dim")
+                trend = Text(_GLYPH_DASH, style="dim")
             table.add_row(
                 path,
                 f"{stat.count:,}",
                 Text(f"{err_pct:.1f}%", style=err_style),
-                f"{stat.p99Latency:,.0f}ms" if stat.p99Latency else "—",
+                f"{stat.p99Latency:,.0f}ms" if stat.p99Latency else _GLYPH_DASH,
                 trend,
             )
         return table
@@ -465,9 +492,9 @@ class Dashboard:
         q_breakdown = self.acc.quarantineTracker.getReasonBreakdown()
         if q_breakdown:
             parts = [f"{reason} ({cnt:,})" for reason, cnt in list(q_breakdown.items())[:3]]
-            quarantine = " · ".join(parts)
+            quarantine = _GLYPH_MID.join(parts)
         else:
-            quarantine = "None — all lines accepted"
+            quarantine = f"None {_GLYPH_DASH} all lines accepted"
 
         weak_fields: List[Tuple[str, float]] = []
         for field in self.acc.dataQuality.FIELDS:
@@ -483,7 +510,7 @@ class Dashboard:
             diag.add_row(
                 "Latency gaps",
                 Text(
-                    f"low-confidence {self.acc.latencyDigest.lowConfidenceCount:,} · "
+                    f"low-confidence {self.acc.latencyDigest.lowConfidenceCount:,}{_GLYPH_MID}"
                     f"unknown {self.acc.latencyDigest.unknownCount:,}",
                     style="dim",
                 ),
@@ -492,11 +519,15 @@ class Dashboard:
         hints: List[str] = []
         q_rate = self.acc.quarantineTracker.rate * 100.0
         if q_rate > 5:
-            hints.append("High quarantine → try --log-timezone or --reference-date")
+            hints.append(
+                f"High quarantine {_GLYPH_ARROW} try --log-timezone or --reference-date"
+            )
         if self.acc.latencyDigest.count == 0 and self.acc.eventCounter.totalEvents > 50:
-            hints.append("No latency → file may be syslog-only or missing duration fields")
+            hints.append(
+                f"No latency {_GLYPH_ARROW} file may be syslog-only or missing duration fields"
+            )
         if hints:
-            diag.add_row("Tip", Text(" · ".join(hints), style="italic cyan"))
+            diag.add_row("Tip", Text(_GLYPH_MID.join(hints), style="italic cyan"))
 
         self.layout["footer"].update(
             _panel(diag, "Diagnostics & next steps", "purple")
