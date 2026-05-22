@@ -13,15 +13,11 @@ class QuarantineGate:
 
     def __init__(
         self,
-        quarantine_threshold: float = 0.3,
+        quarantineThreshold: float = 0.3,
         allow_synthetic_timestamps: bool = False,
         profile: QuarantineProfile = QuarantineProfile.PRAGMATIC,
-        *,
-        quarantineThreshold: float | None = None,
     ):
-        if quarantineThreshold is not None:
-            quarantine_threshold = quarantineThreshold
-        self.quarantineThreshold = quarantine_threshold
+        self.quarantineThreshold = quarantineThreshold
         self.allow_synthetic_timestamps = allow_synthetic_timestamps
         self.profile = profile
 

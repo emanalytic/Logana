@@ -30,7 +30,7 @@ def runPipeline(
         time_context=time_context,
     )
     gate = QuarantineGate(
-        quarantine_threshold=config.quarantineThreshold,
+        quarantineThreshold=config.quarantineThreshold,
         allow_synthetic_timestamps=config.allowSyntheticTimestamps,
         profile=config.quarantineProfile,
     )

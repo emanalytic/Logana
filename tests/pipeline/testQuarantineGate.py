@@ -27,7 +27,7 @@ def test_quarantineGateRejectsMissingTimestamp():
 
 def test_quarantineGateStrictRejectsLowOptionalConfidence():
     gate = QuarantineGate(
-        quarantine_threshold=0.3,
+        quarantineThreshold=0.3,
         profile=QuarantineProfile.STRICT,
     )
     fields = {
@@ -41,7 +41,7 @@ def test_quarantineGateStrictRejectsLowOptionalConfidence():
 
 def test_quarantineGatePragmaticAcceptsLowOptionalConfidence():
     gate = QuarantineGate(
-        quarantine_threshold=0.3,
+        quarantineThreshold=0.3,
         profile=QuarantineProfile.PRAGMATIC,
     )
     fields = {
