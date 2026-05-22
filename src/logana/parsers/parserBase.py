@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List
-from logana.models.fieldState import FieldState, Known, Unknown, Absent
+from logana.models.fieldState import FieldState, Known, Unknown, Absent, isKnown
 from logana.models.logEvent import LogEvent
 from logana.parsers.fieldKit import QUALITY_SCORED_FIELDS
 
@@ -50,6 +50,8 @@ class ParseResult:
         def getField(fieldName: str) -> FieldState:
             return self.fields.get(fieldName, Absent())
 
+        message = getField("message")
+
         return LogEvent(
             timestamp=getField("timestamp"),
             ipAddress=getField("ipAddress"),
@@ -58,8 +60,8 @@ class ParseResult:
             statusCode=getField("statusCode"),
             responseTimeMs=getField("responseTimeMs"),
             logLevel=getField("logLevel"),
-            message=getField("message"),
-            rawLine=self.rawText,
+            message=message,
+            rawLine=self.rawText if not isKnown(message) else "",
             lineNumber=self.lineNumber,
             parserId=self.parserId,
             warnings=self.warnings

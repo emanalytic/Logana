@@ -1,5 +1,6 @@
 from logana.analytics.accumulatorSet import AccumulatorSet
 from logana.output.summaryReport import generateSummary
+from logana.models.events import DriftEvent
 from helpers.eventFactory import buildLogEvent, buildQuarantineEntry
 
 
@@ -22,3 +23,15 @@ def test_summaryWhenNoLatencyData():
     )
     summary = generateSummary(accumulators)
     assert "No response-time data" in summary
+
+
+def test_summaryHighlightsFormatDrift():
+    accumulators = AccumulatorSet()
+    accumulators.formatTracker.driftEvents.append(
+        DriftEvent(lineNumber=42, fromFormat="json", toFormat="clf")
+    )
+
+    summary = generateSummary(accumulators)
+
+    assert "Format drift was detected 1 time(s)" in summary
+    assert "json -> clf near line 42" in summary

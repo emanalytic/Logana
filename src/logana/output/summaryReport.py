@@ -10,6 +10,18 @@ def _latencyPhrase(accumulators: AccumulatorSet) -> str:
         f"and a p99 of {digest.p99:.1f}ms (n={digest.count:,})"
     )
 
+
+def _formatDriftPhrase(accumulators: AccumulatorSet) -> str:
+    drifts = accumulators.formatTracker.driftEvents
+    if not drifts:
+        return ""
+
+    latest = drifts[-1]
+    return (
+        f" Format drift was detected {len(drifts)} time(s); "
+        f"latest shift was {latest.fromFormat} -> {latest.toFormat} near line {latest.lineNumber}."
+    )
+
 def generateSummary(accumulators: AccumulatorSet) -> str:
     """Generates a high-level, human-readable one-paragraph summary of the parsed logs."""
     totalLines = accumulators.eventCounter.totalLines
@@ -36,6 +48,7 @@ def generateSummary(accumulators: AccumulatorSet) -> str:
         topErrorStr = f"'{rep}' (occurred {topErrors[0].count} times)"
 
     qualityScore = accumulators.dataQuality.getOverallQualityScore() * 100.0
+    driftPhrase = _formatDriftPhrase(accumulators)
 
     span = accumulators.logTimeSpan.toDict()
     span_phrase = ""
@@ -58,5 +71,5 @@ def generateSummary(accumulators: AccumulatorSet) -> str:
         f"{latencyPhrase}, with the busiest endpoint being {topEndpointStr}. "
         f"We identified {len(accumulators.errorClusterer.clusters)} distinct error clusters, led by {topErrorStr}. "
         f"The comprehensive parsed data quality score is {qualityScore:.1f}%."
-        f"{span_phrase}{insight_phrase}"
+        f"{driftPhrase}{span_phrase}{insight_phrase}"
     )

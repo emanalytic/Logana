@@ -1,6 +1,7 @@
 import json
 from logana.analytics.accumulatorSet import AccumulatorSet
 from logana.output.jsonExport import exportToJson
+from logana.models.events import DriftEvent
 from helpers.eventFactory import buildLogEvent, buildQuarantineEntry
 
 
@@ -9,6 +10,9 @@ def test_jsonExportStructure():
     accumulators.ingest(buildLogEvent(lineNumber=1, responseTimeMs=120.0, logLevel="INFO"))
     accumulators.ingest(buildLogEvent(lineNumber=2, responseTimeMs=350.0, logLevel="ERROR", urlPath="/api/login", message="DB Timeout"))
     accumulators.ingest(buildQuarantineEntry(lineNumber=3))
+    accumulators.formatTracker.driftEvents.append(
+        DriftEvent(lineNumber=2, fromFormat="json", toFormat="clf")
+    )
 
     data = json.loads(exportToJson(accumulators))
     assert data["summary"]["totalEvents"] == 2
@@ -16,3 +20,5 @@ def test_jsonExportStructure():
     assert data["latency"]["min"] == 120.0
     assert any(e["endpoint"] == "/api/login" for e in data["endpoints"])
     assert data["latency"]["available"] is True
+    assert data["formatDrift"]["count"] == 1
+    assert data["formatDrift"]["latest"]["fromFormat"] == "json"

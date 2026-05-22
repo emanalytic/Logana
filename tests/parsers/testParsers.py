@@ -130,6 +130,32 @@ def test_parser_dispatch():
     res = dispatcher.dispatch('2024-03-15T14:23:01Z 192.168.1.42 GET /api/users 200', 9)
     assert res.parserId == "tokenExtractor"
 
+
+def test_parseResult_clearsRawLineWhenMessageIsKnown():
+    result = ParseResult(
+        "json",
+        {"message": Known("ok", 0.9, "ok")},
+        "raw payload",
+        1,
+    )
+
+    event = result.toLogEvent()
+
+    assert event.rawLine == ""
+
+
+def test_parseResult_keepsRawLineWhenMessageIsMissing():
+    result = ParseResult(
+        "json",
+        {},
+        "raw payload",
+        1,
+    )
+
+    event = result.toLogEvent()
+
+    assert event.rawLine == "raw payload"
+
 def test_quarantine_gate():
     gate = QuarantineGate(quarantineThreshold=0.3)
     strict_gate = QuarantineGate(

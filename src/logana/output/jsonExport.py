@@ -26,6 +26,31 @@ def _latencyBlock(accumulators: AccumulatorSet) -> Dict[str, Any]:
     return block
 
 
+def _formatDriftBlock(accumulators: AccumulatorSet) -> Dict[str, Any]:
+    drifts = accumulators.formatTracker.driftEvents
+    block: Dict[str, Any] = {
+        "count": len(drifts),
+        "available": bool(drifts),
+    }
+    if drifts:
+        block["latest"] = {
+            "lineNumber": drifts[-1].lineNumber,
+            "fromFormat": drifts[-1].fromFormat,
+            "toFormat": drifts[-1].toFormat,
+            "timestamp": drifts[-1].timestamp.isoformat() if drifts[-1].timestamp else None,
+        }
+        block["recent"] = [
+            {
+                "lineNumber": drift.lineNumber,
+                "fromFormat": drift.fromFormat,
+                "toFormat": drift.toFormat,
+                "timestamp": drift.timestamp.isoformat() if drift.timestamp else None,
+            }
+            for drift in drifts[-5:]
+        ]
+    return block
+
+
 def exportToJson(
     accumulators: AccumulatorSet,
     time_context: Optional[PipelineTimeContext] = None,
@@ -63,6 +88,7 @@ def exportToJson(
         "time": time_config,
         "logTimeSpan": accumulators.logTimeSpan.toDict(),
         "fileProfile": accumulators.fileProfile.toDict(),
+        "formatDrift": _formatDriftBlock(accumulators),
         "insights": generateInsights(accumulators),
         "keywords": accumulators.keywordCounter.getTop(),
         "latency": _latencyBlock(accumulators),
