@@ -74,6 +74,13 @@ class ErrorRateTracker:
                     
             self.lastProcessedBucket = currentBucket
 
+    def finalize(self) -> None:
+        """Flush the final time bucket after the input stream ends."""
+        if not self.buckets:
+            return
+        flush_through = max(self.buckets.keys()) + self.windowSizeSec + 1
+        self._checkAndRollBuckets(flush_through)
+
     @property
     def totalErrors(self) -> int:
         """Returns the total number of errors seen across successfully parsed events."""

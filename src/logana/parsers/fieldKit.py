@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Sequence
-from logana.models.fieldState import FieldState, Known, Absent, isKnown
+from logana.models.fieldState import FieldState, Known, Absent, isKnown, pickBetterFieldState
 from logana.extractors.timestamp import TimestampExtractor
 from logana.extractors.timestampHunter import huntTimestamp
 from logana.pipeline.timeContext import PipelineTimeContext, defaultTimeContext
@@ -35,7 +35,9 @@ DEFAULT_KEY_MAPPINGS: Dict[str, List[str]] = {
         "responseTimeMs",
         "response_time",
         "duration",
+        "duration_ms",
         "latency",
+        "latency_ms",
         "timeMs",
         "time_ms",
     ],
@@ -110,10 +112,7 @@ class ParserFieldKit:
         candidate: FieldState,
     ) -> None:
         current = fields.get(fieldName, Absent())
-        if not isKnown(current) or (
-            isKnown(candidate) and candidate.confidence > current.confidence
-        ):
-            fields[fieldName] = candidate
+        fields[fieldName] = pickBetterFieldState(current, candidate)
 
     def scanTokens(
         self,

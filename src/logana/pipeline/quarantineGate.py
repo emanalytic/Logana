@@ -77,15 +77,11 @@ class QuarantineGate:
 
         low_fields = []
         for field_name in QUALITY_SCORED_FIELDS:
+            if field_name == "timestamp":
+                continue
             field = result.fields.get(field_name)
             if isinstance(field, Known) and field.confidence < self.quarantineThreshold:
                 low_fields.append(f"{field_name} ({field.confidence:.2f})")
-            elif (
-                field_name == "timestamp"
-                and isinstance(field, Unknown)
-                and field.guessConfidence < self.quarantineThreshold
-            ):
-                low_fields.append(f"{field_name} ({field.guessConfidence:.2f})")
 
         if low_fields:
             reasons.append(

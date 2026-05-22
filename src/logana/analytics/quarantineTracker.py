@@ -78,6 +78,13 @@ class QuarantineTracker:
                     
             self.lastProcessedBucket = currentBucket
 
+    def finalize(self) -> None:
+        """Flush the final time bucket after the input stream ends."""
+        if not self.buckets:
+            return
+        flush_through = max(self.buckets.keys()) + self.windowSizeSec + 1
+        self._checkAndRollBuckets(flush_through)
+
     def _recordReasons(self, reason: str) -> None:
         for part in reason.split(";"):
             key = part.strip()

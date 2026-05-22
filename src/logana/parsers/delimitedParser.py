@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 from logana.models.fieldState import FieldState, Known, Unknown, Absent, isKnown
 from logana.parsers.parserBase import Parser, ParseResult
 from logana.parsers.fieldKit import ParserFieldKit, STANDARD_FIELD_NAMES, DEFAULT_KEY_MAPPINGS
+from logana.pipeline.formatProbe import _stableCommaColumns
 from logana.pipeline.timeContext import PipelineTimeContext, defaultTimeContext
 
 class DelimitedParser(Parser):
@@ -13,10 +14,12 @@ class DelimitedParser(Parser):
 
     def _detectDelimiter(self, text: str) -> Optional[str]:
         """Sniffs the line for common delimiters (needs at least 3 columns)."""
-        delims = ['\t', '|', ',']
-        for d in delims:
-            if text.count(d) >= 2:
-                return d
+        first = text.split("\n", 1)[0]
+        for delim in ("\t", "|"):
+            if first.count(delim) >= 2 and first.count(delim) + 1 >= 3:
+                return delim
+        if _stableCommaColumns(text):
+            return ","
         return None
 
     def _try_header_mapping(self, parts: List[str]) -> Dict[str, int]:

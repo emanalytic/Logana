@@ -44,3 +44,20 @@ def getValueOrDefault(state: FieldState[T], defaultVal: T) -> T:
     if isinstance(state, Unknown) and state.bestGuess is not None:
         return state.bestGuess
     return defaultVal
+
+
+def _fieldStateRank(state: FieldState[T]) -> tuple[int, float]:
+    """Sort key: Known > Unknown > Absent; higher confidence wins within a tier."""
+    if isinstance(state, Known):
+        return (3, state.confidence)
+    if isinstance(state, Unknown):
+        return (2, state.guessConfidence)
+    return (1, 0.0)
+
+
+def pickBetterFieldState(
+    current: FieldState[T],
+    candidate: FieldState[T],
+) -> FieldState[T]:
+    """Merge two field states without letting Absent overwrite Unknown or Known."""
+    return candidate if _fieldStateRank(candidate) > _fieldStateRank(current) else current

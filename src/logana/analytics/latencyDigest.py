@@ -8,10 +8,14 @@ MAX_HTTP_LATENCY_MS = 120_000.0
 
 
 def _is_http_shaped(event: LogEvent) -> bool:
-    """Latency metrics are only meaningful for request-shaped events."""
+    """Latency metrics are meaningful when the event looks request- or API-shaped."""
     if isinstance(event.urlPath, Known):
         return True
     if isinstance(event.httpMethod, Known) and isinstance(event.statusCode, Known):
+        return True
+    if isinstance(event.statusCode, Known):
+        return True
+    if isinstance(event.responseTimeMs, Known):
         return True
     return event.parserId in ("clf", "json", "kv") and isinstance(event.statusCode, Known)
 

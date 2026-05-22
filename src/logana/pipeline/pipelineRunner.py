@@ -48,4 +48,6 @@ def runPipeline(
         if onProgress is not None:
             onProgress()
 
+    accumulators.errorRate.finalize()
+    accumulators.quarantineTracker.finalize()
     return accumulators

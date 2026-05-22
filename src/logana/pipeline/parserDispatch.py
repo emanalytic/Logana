@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-from logana.models.fieldState import FieldState, isKnown, Known
+from logana.models.fieldState import FieldState, isKnown, Known, pickBetterFieldState
 from logana.parsers.parserBase import ParseResult, Parser
 from logana.parsers.jsonParser import JsonParser
 from logana.parsers.clfParser import ClfParser
@@ -34,31 +34,19 @@ class ParserDispatch:
         self.fallbackParser = TokenExtractor(ctx)
 
     def mergeBestFields(self, primary: ParseResult, fallback: ParseResult) -> ParseResult:
-        """Merges two ParseResults, keeping the higher confidence Known fields for each key."""
+        """Merges two ParseResults, preferring Known > Unknown > Absent per field."""
         mergedFields: Dict[str, FieldState] = {}
         allKeys = set(primary.fields.keys()) | set(fallback.fields.keys())
 
         for key in allKeys:
             pField = primary.fields.get(key)
             fField = fallback.fields.get(key)
-
             if pField is None:
                 mergedFields[key] = fField
             elif fField is None:
                 mergedFields[key] = pField
             else:
-                pIsKnown = isKnown(pField)
-                fIsKnown = isKnown(fField)
-
-                if pIsKnown and fIsKnown:
-                    if pField.confidence >= fField.confidence:
-                        mergedFields[key] = pField
-                    else:
-                        mergedFields[key] = fField
-                elif pIsKnown:
-                    mergedFields[key] = pField
-                else:
-                    mergedFields[key] = fField
+                mergedFields[key] = pickBetterFieldState(pField, fField)
 
         mergedWarnings = primary.warnings + fallback.warnings
         mergedWarnings.append(f"Merged fallback parser '{fallback.parserId}' due to low confidence")
@@ -103,7 +91,14 @@ class ParserDispatch:
             primaryParser = self.parsers[hint]
             primaryResult = primaryParser.parse(text, lineNumber)
 
-            if primaryResult.fields and primaryResult.qualityConfidence >= self.quarantineThreshold:
+            has_known_field = any(
+                isinstance(f, Known) for f in primaryResult.fields.values()
+            )
+            if (
+                primaryResult.fields
+                and has_known_field
+                and primaryResult.qualityConfidence >= self.quarantineThreshold
+            ):
                 return self._finalize(primaryResult)
 
             fallbackResult = self.fallbackParser.parse(text, lineNumber)

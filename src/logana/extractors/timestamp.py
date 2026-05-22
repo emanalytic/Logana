@@ -224,6 +224,8 @@ class TimestampExtractor(BaseExtractor[datetime]):
             hour = int(time_part[:2])
             minute = int(time_part[2:4])
             second = int(time_part[4:6])
+            if not (1 <= mm <= 12 and 1 <= dd <= 31 and 0 <= hour <= 23 and minute <= 59 and second <= 59):
+                return None
             year = 2000 + yy if yy < 70 else 1900 + yy
             dt = datetime(year, mm, dd, hour, minute, second)
             return (dt, 0.82, match.group(0), TIMESTAMP_SOURCE_LOCAL)
@@ -316,9 +318,13 @@ class TimestampExtractor(BaseExtractor[datetime]):
         try:
             val = int(matched_text)
             if len(matched_text) == 13:
+                if not (1_000_000_000_000 <= val <= 2_200_000_000_000):
+                    return None
                 dt = datetime.fromtimestamp(val / 1000.0, tz=timezone.utc)
                 conf = 0.8
             else:
+                if not (1_000_000_000 <= val <= 2_200_000_000):
+                    return None
                 dt = datetime.fromtimestamp(val, tz=timezone.utc)
                 conf = 0.75
             return (dt, conf, matched_text, TIMESTAMP_SOURCE_EPOCH)
