@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from collections import Counter
 from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Literal, Optional
 
@@ -12,6 +13,7 @@ class PipelineTimeContext:
     default_tz: tzinfo
     naive_policy: NaivePolicy = "local"
     reference_year: Optional[int] = field(default=None)
+    _anchor_year_votes: Counter[int] = field(default_factory=Counter, init=False, repr=False)
 
     def resolve_syslog_year(self, month: int, day: int) -> int:
         """Pick a year for BSD syslog timestamps missing a year component."""
@@ -30,10 +32,23 @@ class PipelineTimeContext:
 
     def note_anchor(self, dt: datetime) -> None:
         """Learn reference year from a fully specified timestamp in the stream."""
-        if self.reference_year is not None:
+        year = dt.year
+        if year < 2000 or year > 2050:
             return
-        if 2000 <= dt.year <= 2050:
-            self.reference_year = dt.year
+
+        self._anchor_year_votes[year] += 1
+
+        if self.reference_year is None:
+            self.reference_year = year
+            return
+
+        if self.reference_year not in self._anchor_year_votes:
+            return
+
+        top_year, top_votes = self._anchor_year_votes.most_common(1)[0]
+        current_votes = self._anchor_year_votes[self.reference_year]
+        if top_year != self.reference_year and top_votes > current_votes:
+            self.reference_year = top_year
 
 
 def defaultTimeContext() -> PipelineTimeContext:

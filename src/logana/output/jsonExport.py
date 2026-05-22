@@ -1,4 +1,4 @@
-import json
+import orjson
 from typing import Any, Dict, Optional
 from logana.analytics.accumulatorSet import AccumulatorSet
 from logana.models.quarantineEntry import QuarantineEntry
@@ -154,4 +154,4 @@ def exportToJson(
             )
         ],
     }
-    return json.dumps(data, indent=2)
+    return orjson.dumps(data, option=orjson.OPT_INDENT_2).decode("utf-8")

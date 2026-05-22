@@ -94,3 +94,14 @@ def test_normalizer_never_returns_naive(chicago_context):
     utc_dt, _, source = normalizer.normalize(naive, TIMESTAMP_SOURCE_LOCAL, 0.9)
     assert utc_dt.tzinfo is not None
     assert source == TIMESTAMP_SOURCE_LOCAL
+
+
+def test_note_anchor_rebalances_after_malformed_false_positive(chicago_context):
+    chicago_context.note_anchor(datetime(2001, 1, 1, tzinfo=timezone.utc))
+    assert chicago_context.reference_year == 2001
+
+    chicago_context.note_anchor(datetime(2024, 1, 1, tzinfo=timezone.utc))
+    assert chicago_context.reference_year == 2001
+
+    chicago_context.note_anchor(datetime(2024, 2, 1, tzinfo=timezone.utc))
+    assert chicago_context.reference_year == 2024
