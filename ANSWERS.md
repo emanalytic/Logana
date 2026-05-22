@@ -117,9 +117,11 @@ AI sped up typing and debugging. **Architecture, structure, and product choices 
 
 ## 5. Honest gaps
 
-- Inflated rejected % (stacks), login ERROR lines not counted, checkout latency 0 on CLF-heavy paths, historical syslog needs --reference-date.
-- Text logs only; one file per run; a wrong timezone flag produces wrong charts; XML and CEF in fixtures are expected to fail parsing.
-- Can add ai, but will do this later.
+- Multiline stack traces can still raise the rejected rate because the header line has the real timestamp, but the continuation lines often do not.
+- Latency is only counted when the field name or source makes the unit clear; a bare value like `duration: 3.2` stays ambiguous unless I add a rule for that source.
+- Old syslog files with no year still need `--reference-date` or a strong year hint, otherwise the year can be wrong near a boundary.
+- The tool is still one file at a time and only supports text logs; XML, CEF, and similar formats are expected to fail unless I add a parser for them.
+- A wrong `--log-timezone` or `--naive-timestamps` choice can shift timestamps and make the charts look correct even when the assumption is wrong.
 
 ---
 
