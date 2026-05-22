@@ -18,8 +18,16 @@ def hasIncompleteJsonObject(text: str) -> bool:
     depth = 0
     inString = False
     escapeNext = False
+    depth, inString, escapeNext = _scanJsonState(stripped, depth, inString, escapeNext)
+    return depth > 0
 
-    for char in stripped:
+def _scanJsonState(
+    text: str,
+    depth: int,
+    inString: bool,
+    escapeNext: bool,
+) -> Tuple[int, bool, bool]:
+    for char in text:
         if escapeNext:
             escapeNext = False
             continue
@@ -40,9 +48,9 @@ def hasIncompleteJsonObject(text: str) -> bool:
         elif char == '}':
             depth -= 1
             if depth <= 0:
-                return False
+                return 0, inString, escapeNext
 
-    return depth > 0
+    return depth, inString, escapeNext
 
 
 def isCompleteJsonLine(line: str) -> bool:
@@ -70,6 +78,22 @@ class LineBoundaryDetector:
         self.maxGroupSize = maxGroupSize
         self.currentGroup: List[str] = []
         self.startLineNum = 1
+        self._jsonDepth = 0
+        self._jsonInString = False
+        self._jsonEscapeNext = False
+
+    def _resetJsonState(self) -> None:
+        self._jsonDepth = 0
+        self._jsonInString = False
+        self._jsonEscapeNext = False
+
+    def _updateJsonState(self, line: str) -> None:
+        self._jsonDepth, self._jsonInString, self._jsonEscapeNext = _scanJsonState(
+            line,
+            self._jsonDepth,
+            self._jsonInString,
+            self._jsonEscapeNext,
+        )
 
     def detectBoundaries(
         self, rawLineStream: Generator[str, None, None]
@@ -80,21 +104,32 @@ class LineBoundaryDetector:
             if not self.currentGroup:
                 self.currentGroup.append(line)
                 self.startLineNum = idx
+                self._resetJsonState()
+                self._updateJsonState(line)
                 continue
 
-            group_text = "\n".join(self.currentGroup)
-            should_continue = _isContinuationLine(rawLine, line, group_text)
+            if self._jsonDepth > 0:
+                should_continue = True
+            else:
+                should_continue = _isContinuationLine(
+                    rawLine,
+                    line,
+                    "\n".join(self.currentGroup),
+                )
 
             # NDJSON: complete one-line JSON starts a new record
-            if isCompleteJsonLine(line) and not hasIncompleteJsonObject(group_text):
+            if isCompleteJsonLine(line) and self._jsonDepth == 0:
                 should_continue = False
 
             if should_continue and len(self.currentGroup) < self.maxGroupSize:
                 self.currentGroup.append(line)
+                self._updateJsonState(line)
             else:
                 yield "\n".join(self.currentGroup), self.startLineNum
                 self.currentGroup = [line]
                 self.startLineNum = idx
+                self._resetJsonState()
+                self._updateJsonState(line)
 
         if self.currentGroup:
             yield "\n".join(self.currentGroup), self.startLineNum

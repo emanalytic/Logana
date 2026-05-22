@@ -13,13 +13,16 @@ APACHE_BRACKET_YEAR_RE = re.compile(
 ISO_YEAR_RE = re.compile(r"\b(20\d{2})-\d{2}-\d{2}\b")
 
 MIN_YEAR = 1995
-MAX_YEAR = datetime.now().year + 1
 MIN_VOTE_SHARE = 0.30
 MIN_VOTES = 3
 
 
+def _max_year() -> int:
+    return datetime.now().year + 1
+
+
 def _plausible_year(year: int) -> bool:
-    return MIN_YEAR <= year <= MAX_YEAR
+    return MIN_YEAR <= year <= _max_year()
 
 
 def sniffReferenceYear(
