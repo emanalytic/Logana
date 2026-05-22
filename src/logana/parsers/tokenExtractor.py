@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict
 from logana.models.fieldState import FieldState, Known
 from logana.parsers.parserBase import Parser, ParseResult
 from logana.parsers.fieldKit import ParserFieldKit

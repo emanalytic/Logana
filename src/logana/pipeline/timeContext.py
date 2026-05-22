@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Literal, Optional
-from zoneinfo import ZoneInfo
 
 NaivePolicy = Literal["local", "utc"]
 

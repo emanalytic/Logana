@@ -1,6 +1,5 @@
-import pytest
 from datetime import datetime, timezone
-from logana.models.fieldState import Known, Unknown, Absent, isKnown
+from logana.models.fieldState import Known, Unknown, isKnown
 from logana.models.logEvent import LogEvent
 from logana.models.quarantineEntry import QuarantineEntry
 from logana.parsers.parserBase import ParseResult
@@ -171,4 +170,4 @@ def test_quarantine_gate():
         ParseResult("test", lowConfTimestamp, "raw line", 13)
     )
     assert isinstance(quarantineRes3, QuarantineEntry)
-    assert "confidence" in quarantineRes3.reason
+    assert "Missing or invalid timestamp" in quarantineRes3.reason

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from logana.analytics.latencyDigest import LatencyDigest
 from logana.models.logEvent import LogEvent
-from logana.models.fieldState import Known, Unknown, Absent
+from logana.models.fieldState import Known, Absent
 from helpers.eventFactory import buildLogEvent
 
 

@@ -22,7 +22,7 @@ def generateInsights(accumulators: AccumulatorSet) -> List[Dict[str, Any]]:
                 "type": "anomaly",
                 "severity": "alert",
                 "message": (
-                    f"Error-rate spike at {last.timestamp.strftime('%H:%M:%S')} UTC "
+                    f"Error-rate spike at {last.timestamp.strftime('%H:%M:%S')} "
                     f"(z={last.zScore:.1f})"
                 ),
             })
@@ -69,7 +69,10 @@ def generateInsights(accumulators: AccumulatorSet) -> List[Dict[str, Any]]:
             ),
         })
 
-    if accumulators.latencyDigest.count == 0:
+    if (
+        accumulators.eventCounter.totalEvents > 0
+        and accumulators.latencyDigest.count == 0
+    ):
         highlights.append({
             "type": "latency",
             "severity": "info",

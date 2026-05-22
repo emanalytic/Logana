@@ -1,4 +1,4 @@
-from typing import Union, Dict, List
+from typing import Union, Dict
 from logana.models.logEvent import LogEvent
 from logana.models.quarantineEntry import QuarantineEntry
 from logana.models.fieldState import Known, Unknown, Absent

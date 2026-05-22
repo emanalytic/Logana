@@ -1,5 +1,4 @@
 import sys
-from datetime import date
 from typing import Optional
 import click
 from logana.analytics.accumulatorSet import AccumulatorSet
@@ -123,21 +122,27 @@ def main(
 def _runWithDashboard(filePath: str, config: PipelineConfig) -> AccumulatorSet:
     accumulators = AccumulatorSet(max_endpoints=config.maxEndpoints)
     dashboard = Dashboard(accumulators)
-    dashboard.redrawInterval = 0.0
-    dashboard.update()
 
+    if not RICH_AVAILABLE:
+        runPipeline(filePath, config, accumulators=accumulators)
+        return accumulators
+
+    from rich.console import Console
+
+    console = Console(force_terminal=True)
     with Live(
         dashboard.layout,
-        refresh_per_second=8,
+        console=console,
+        refresh_per_second=4,
         transient=False,
-        vertical_overflow="visible",
+        vertical_overflow="crop",
     ) as live:
         def onProgress() -> None:
             dashboard.update()
             live.update(dashboard.layout)
 
         runPipeline(filePath, config, onProgress=onProgress, accumulators=accumulators)
-        dashboard.update()
+        dashboard.update(force=True)
         live.update(dashboard.layout)
 
     return accumulators

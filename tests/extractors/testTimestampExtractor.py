@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime, timezone
 from logana.models.fieldState import Known, Unknown, Absent
 from logana.extractors.timestamp import TimestampExtractor

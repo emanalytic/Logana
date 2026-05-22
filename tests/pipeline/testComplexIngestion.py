@@ -1,6 +1,5 @@
 import os
 
-import pytest
 
 from logana.models.fieldState import getValueOrDefault, isKnown
 from logana.models.logEvent import LogEvent

@@ -17,7 +17,6 @@ drain3 = "^0.9.11"
 orjson = "^3.11.9"
 logfmt = "^0.4"
 pydantic = "^2.13.4"
-plotext = "^5.3.2"
 apachelogs = "^0.6.1"
 
 [tool.poetry.group.dev.dependencies]

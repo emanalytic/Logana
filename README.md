@@ -210,7 +210,7 @@ The file on disk may be very large; the working set in RAM should not grow witho
 - **[Poetry](https://python-poetry.org/docs/#installation)** (recommended for install and runs)
 - **Windows, macOS, or Linux**
 
-Main dependencies (via Poetry): `click`, `rich`, `tzdata`, `python-dateutil`, `drain3`, `orjson`, `logfmt`, `apachelogs`, `pydantic`, `plotext`. Latency percentiles use an in-tree T-Digest implementation because the PyPI `tdigest` package requires a C++ compiler on Windows.
+Main dependencies (via Poetry): `click`, `rich`, `tzdata`, `python-dateutil`, `drain3`, `orjson`, `logfmt`, `apachelogs`, `pydantic`. Latency percentiles use an in-tree T-Digest implementation because the PyPI `tdigest` package requires a C++ compiler on Windows.
 
 ---
 

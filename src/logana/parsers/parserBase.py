@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Union
+from typing import Dict, List
 from logana.models.fieldState import FieldState, Known, Unknown, Absent
 from logana.models.logEvent import LogEvent
-from logana.models.quarantineEntry import QuarantineEntry
 from logana.parsers.fieldKit import QUALITY_SCORED_FIELDS
 
 class ParseResult:

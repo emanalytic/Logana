@@ -1,7 +1,6 @@
 from typing import List
 from logana.models.fieldState import FieldState, isKnown, Absent
 from logana.extractors.timestamp import TimestampExtractor
-from logana.pipeline.timeContext import PipelineTimeContext
 
 
 def huntTimestamp(

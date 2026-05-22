@@ -1,6 +1,6 @@
 from logana.pipeline.quarantineGate import QuarantineGate
 from logana.parsers.parserBase import ParseResult
-from logana.models.fieldState import Absent, Known
+from logana.models.fieldState import Known
 from logana.models.logEvent import LogEvent
 
 def test_synthetic_timestamp_creates_event():

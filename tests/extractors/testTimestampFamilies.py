@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from logana.extractors.timestamp import TimestampExtractor
 from logana.models.fieldState import isKnown

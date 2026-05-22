@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Sequence
-from logana.models.fieldState import FieldState, Known, Absent, isKnown, pickBetterFieldState
+from logana.models.fieldState import FieldState, Absent, isKnown, pickBetterFieldState
 from logana.extractors.timestamp import TimestampExtractor
 from logana.extractors.timestampHunter import huntTimestamp
 from logana.pipeline.timeContext import PipelineTimeContext, defaultTimeContext

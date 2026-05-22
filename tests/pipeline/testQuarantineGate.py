@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from logana.models.fieldState import Known, Unknown
+from logana.models.fieldState import Known
 from logana.models.logEvent import LogEvent
 from logana.models.quarantineEntry import QuarantineEntry
 from logana.parsers.parserBase import ParseResult

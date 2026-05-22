@@ -1,6 +1,6 @@
 import re
 from typing import Dict
-from logana.models.fieldState import FieldState, Known, Unknown, Absent
+from logana.models.fieldState import FieldState, Known, Absent
 from logana.parsers.parserBase import Parser, ParseResult
 from logana.extractors.ipAddress import IpAddressExtractor
 from logana.extractors.logLevel import LogLevelExtractor
