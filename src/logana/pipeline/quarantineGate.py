@@ -100,8 +100,9 @@ class QuarantineGate:
     def route(
         self,
         result: ParseResult,
-        contextBefore: List[str] = None,
+        contextBefore: Optional[List[str]] = None,
     ) -> Union[LogEvent, QuarantineEntry]:
+    
         timestamp_field = result.fields.get("timestamp")
         if not timestamp_field or not isKnown(timestamp_field):
             if self.allow_synthetic_timestamps:
