@@ -1,6 +1,6 @@
 # ANSWERS.md
 
- Full setup and architecture: [README.md](README.md).
+Full setup and architecture: [README.md](README.md).
 
 ---
 
@@ -41,12 +41,12 @@ poetry run pytest -q
 
 **If something breaks:**
 
-| Problem | Try this |
-|---------|----------|
-| `poetry` not found | Install Poetry and restart the terminal |
-| Wrong Python version | `poetry env use python3.12`, then `poetry install` |
-| `No module named logana` | From the project folder: `poetry install`, then `poetry run logana` |
-| Command still points at old code | `poetry lock`, then `poetry install` |
+| Problem                          | Try this                                                            |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `poetry` not found               | Install Poetry and restart the terminal                             |
+| Wrong Python version             | `poetry env use python3.12`, then `poetry install`                  |
+| `No module named logana`         | From the project folder: `poetry install`, then `poetry run logana` |
+| Command still points at old code | `poetry lock`, then `poetry install`                                |
 
 ---
 
@@ -62,34 +62,48 @@ poetry run pytest -q
 
 **What I did not build**
 
-| Idea | Why I skipped it |
-|------|------------------|
-| Web upload app | Same result, but more setup for reviewers |
-| Splunk / ELK | Built for large fleets and search — not “analyze this one file” |
-| Loading the whole file with pandas | RAM grows with file size |
-| C++ / Rust | I am still a beginner in those languages |
+| Idea                               | Why I skipped it                                                |
+| ---------------------------------- | --------------------------------------------------------------- |
+| Web upload app                     | Same result, but more setup for reviewers                       |
+| Splunk / ELK                       | Built for large fleets and search — not “analyze this one file” |
+| Loading the whole file with pandas | RAM grows with file size                                        |
+| C++ / Rust                         | I am still a beginner in those languages                        |
 
 **Tradeoff:** the tool is fast enough on a laptop, but some formats need `--log-timezone` or `--reference-date`.
 
 ---
 
-## 3.Edge cases
+## 3. Edge cases
 
-Two situations that often appear in production logs and shaped how logana was built.
+These are the real edge cases that shaped the parser and the dashboard.
 
-### A 
+### A. Multiline stack traces
 
-Application crashes and stack traces rarely fit on a single line. The first line usually has the timestamp and error message. Follow-up lines (`at …`, `Caused by:`, indented details) belong to the same failure but often have **no timestamp of their own**.
-If the tool treated every physical line as a separate event, you would get extra rows with missing times, wrong volume counts, and a misleading rejected rate.
-**What I did:** Before parsing, related lines are grouped into one chunk (stack continuations, indented blocks, and JSON objects that span multiple lines).
-**Limitation:** Only the header line typically has a trustworthy time. Follow-up lines may still be marked as rejected even though they belong to the same exception. Error stats on the header remain useful.
+In `app.log`, one payment failure expands into a Java stack trace. The first line has the timestamp, but the follow-up `at ...` and `Caused by:` lines do not.
+If I counted each physical line as a separate event, the file would look much noisier than it really is.
+**What I do:** `lineBoundary` groups the stack trace into one logical chunk before parsing.
+**Tradeoff:** the stack trace tail may still be quarantined separately if it does not carry its own timestamp, but the main error line still counts and still helps the error-rate charts.
 
----
+### B. Mixed formats in one file
 
-### B 
-A single outage is often visible in several shapes at once: access-style lines (failure in the HTTP status), JSON gateway lines (a soft level like WARN but status 5xx), syslog or load-balancer lines, and `key=value` application logs. A parser built for only one format would under-count the same incident.
-**What I did:** Detect the format per chunk, parse with the matching handler, normalize to the same eight fields, and fill gaps with a backup scan over the line when needed. For metrics, a row counts as an error if the log level indicates failure **or** the HTTP status is 500 or higher, so access logs and JSON gateways are judged the same way.
-**Limitation:** A line can legitimately say WARN while the status is 200 that should not count as an error. Only a bad level **or** status 5xx triggers the error bucket.
+The synthetic mixed log and the real sample both contain CLF, JSON, logfmt, pipe-delimited rows, syslog, and plain text in the same file.
+A parser that expects only one shape would miss a lot of useful rows.
+**What I do:** `formatProbe` picks the best parser per chunk, and `parserDispatch` falls back to token scanning when the chunk is only partly structured.
+**Tradeoff:** heuristic parsing is flexible, but it can still be wrong on unusual vendor logs, so the tool prefers conservative quarantine over guessing too much.
+
+### C. Bare latency values
+
+In JSON logs, `duration_ms: 142` is safe because the field name says the unit.
+But a bare value like `duration: 3.2` is not automatically safe, because the same number could mean milliseconds, seconds, or something else in another file.
+**What I do:** explicit ms-style aliases count as latency samples, while ambiguous bare numbers stay `Unknown` unless a source-specific rule says otherwise.
+**Tradeoff:** this avoids false precision, but it means some logs need a custom alias mapping before their latency shows up in the dashboard.
+
+### D. Syslog without a year
+
+Older syslog lines often look like `May 21 09:01:12 ...` with no year at all.
+If I guessed the year blindly, January logs near a year boundary could be wrong.
+**What I do:** `sniffReferenceYear` and `--reference-date` provide a year anchor, and the parser only accepts a learned year when there is enough evidence.
+**Tradeoff:** the tool may quarantine or under-confidence some old syslog lines rather than inventing the wrong year.
 
 ---
 
@@ -103,7 +117,6 @@ AI sped up typing and debugging. **Architecture, structure, and product choices 
 
 ## 5. Honest gaps
 
-	
 - Inflated rejected % (stacks), login ERROR lines not counted, checkout latency 0 on CLF-heavy paths, historical syslog needs --reference-date.
 - Text logs only; one file per run; a wrong timezone flag produces wrong charts; XML and CEF in fixtures are expected to fail parsing.
 - Can add ai, but will do this later.
