@@ -45,21 +45,28 @@ DEFAULT_KEY_MAPPINGS: Dict[str, List[str]] = {
     "message": ["message", "msg", "log", "text"],
 }
 
-_MILLISECOND_KEY_HINTS = frozenset({
+DEFAULT_RESPONSE_TIME_KEY_ALIASES: List[str] = [
     "responseTimeMs",
+    "response_time_ms",
     "duration_ms",
     "latency_ms",
     "time_ms",
-    "response_time_ms",
-})
+    "elapsed_ms",
+]
 
 
 class ParserFieldKit:
     """Shared extractor instances and helpers used across format parsers."""
 
-    def __init__(self, time_context: Optional[PipelineTimeContext] = None) -> None:
+    def __init__(
+        self,
+        time_context: Optional[PipelineTimeContext] = None,
+        response_time_key_aliases: Optional[Sequence[str]] = None,
+    ) -> None:
         ctx = time_context or defaultTimeContext()
         self.time_context = ctx
+        aliases = response_time_key_aliases or DEFAULT_RESPONSE_TIME_KEY_ALIASES
+        self.responseTimeKeyHints = frozenset(aliases)
         self.timestampExt = TimestampExtractor(ctx)
         self.ipExt = IpAddressExtractor()
         self.methodExt = HttpMethodExtractor()
@@ -112,7 +119,7 @@ class ParserFieldKit:
         if raw is None:
             return Absent()
 
-        if key in _MILLISECOND_KEY_HINTS:
+        if key in self.responseTimeKeyHints:
             try:
                 return Known(float(raw), 0.95, str(raw))
             except (TypeError, ValueError):
