@@ -275,6 +275,12 @@ class Dashboard:
         self.layout = self._build_layout()
         self.lastRedraw = 0.0
         self.redrawInterval = 0.1
+        self._errorTableSignature: tuple | None = None
+        self._errorTableRenderable: Table | None = None
+        self._endpointVolumeSignature: tuple | None = None
+        self._endpointVolumeRenderable: Table | None = None
+        self._endpointErrorsSignature: tuple | None = None
+        self._endpointErrorsRenderable: Table | None = None
 
     def _build_layout(self) -> Layout:
         """Stack layout: wide snapshot + errors; only error/latency share one row."""
@@ -477,42 +483,55 @@ class Dashboard:
         )
 
     def _update_errors(self) -> None:
-        table = Table(expand=True, box=_TABLE_BOX, show_lines=False, pad_edge=False)
-        table.add_column("#", width=3, justify="right", style="dim")
-        table.add_column("cnt", width=6, justify="right", style="bold")
-        table.add_column("time", width=8, style="dim")
-        table.add_column("pattern", ratio=3, no_wrap=False)
-        table.add_column("paths", ratio=1, style="dim", no_wrap=False)
-
         clusters = self.acc.errorClusterer.getTopClusters(limit=5)
-        if not clusters:
-            table.add_row(
-                G.dash,
-                G.dash,
-                G.dash,
-                Text("No errors detected", style="dim italic"),
-                G.dash,
+        signature = tuple(
+            (
+                cluster.drainClusterId,
+                cluster.count,
+                cluster.lastSeen.isoformat() if cluster.lastSeen else None,
+                cluster.representative,
+                tuple(sorted(cluster.endpoints)),
             )
-        else:
-            for idx, cluster in enumerate(clusters):
-                paths = ", ".join(sorted(cluster.endpoints)[:2]) or G.dash
-                if len(cluster.endpoints) > 2:
-                    paths += f" +{len(cluster.endpoints) - 2}"
-                seen = (
-                    cluster.lastSeen.strftime("%H:%M:%S")
-                    if cluster.lastSeen
-                    else G.dash
-                )
+            for cluster in clusters
+        )
+        if signature != self._errorTableSignature or self._errorTableRenderable is None:
+            table = Table(expand=True, box=_TABLE_BOX, show_lines=False, pad_edge=False)
+            table.add_column("#", width=3, justify="right", style="dim")
+            table.add_column("cnt", width=6, justify="right", style="bold")
+            table.add_column("time", width=8, style="dim")
+            table.add_column("pattern", ratio=3, no_wrap=False)
+            table.add_column("paths", ratio=1, style="dim", no_wrap=False)
+
+            if not clusters:
                 table.add_row(
-                    str(idx + 1),
-                    f"{cluster.count:,}",
-                    seen,
-                    _truncate(cluster.representative, 64),
-                    paths,
+                    G.dash,
+                    G.dash,
+                    G.dash,
+                    Text("No errors detected", style="dim italic"),
+                    G.dash,
                 )
+            else:
+                for idx, cluster in enumerate(clusters):
+                    paths = ", ".join(sorted(cluster.endpoints)[:2]) or G.dash
+                    if len(cluster.endpoints) > 2:
+                        paths += f" +{len(cluster.endpoints) - 2}"
+                    seen = (
+                        cluster.lastSeen.strftime("%H:%M:%S")
+                        if cluster.lastSeen
+                        else G.dash
+                    )
+                    table.add_row(
+                        str(idx + 1),
+                        f"{cluster.count:,}",
+                        seen,
+                        _truncate(cluster.representative, 64),
+                        paths,
+                    )
+            self._errorTableSignature = signature
+            self._errorTableRenderable = table
         self._paint(
             "errors",
-            table,
+            self._errorTableRenderable,
             "Error patterns",
             "red",
             subtitle=f"Grouped by Drain3 {G.dash} variables masked",
@@ -520,7 +539,7 @@ class Dashboard:
 
     def _endpoint_table(self, stats: list[EndpointStats], empty_msg: str) -> Table:
         table = Table(expand=True, box=_TABLE_BOX, show_lines=False, pad_edge=False)
-        table.add_column("path", ratio=2, style="cyan", no_wrap=False)
+        table.add_column("path", ratio=2, style="cyan", no_wrap=True, overflow="ellipsis")
         table.add_column("n", width=5, justify="right")
         table.add_column("err%", width=6, justify="right")
         table.add_column("p99", width=7, justify="right")
@@ -539,7 +558,7 @@ class Dashboard:
             else:
                 trend = Text(G.dash, style="dim")
             table.add_row(
-                _truncate(stat.endpoint, 36),
+                stat.endpoint,
                 f"{stat.count:,}",
                 Text(f"{err_pct:.1f}%", style=_err_pct_style(err_pct)),
                 f"{stat.p99Latency:,.0f}ms" if stat.p99Latency else G.dash,
@@ -549,9 +568,16 @@ class Dashboard:
 
     def _update_endpoints_by_volume(self) -> None:
         stats = self.acc.endpointTable.getSortedEndpoints(sortBy="volume", limit=5)
+        signature = tuple(
+            (s.endpoint, s.count, s.errors, s.p99Latency, s.trend)
+            for s in stats
+        )
+        if signature != self._endpointVolumeSignature or self._endpointVolumeRenderable is None:
+            self._endpointVolumeRenderable = self._endpoint_table(stats, "No HTTP paths yet")
+            self._endpointVolumeSignature = signature
         self._paint(
             "byVolume",
-            self._endpoint_table(stats, "No HTTP paths yet"),
+            self._endpointVolumeRenderable,
             "Most traffic",
             "cyan",
         )
@@ -562,9 +588,18 @@ class Dashboard:
             for s in self.acc.endpointTable.getSortedEndpoints(sortBy="errorRate", limit=8)
             if s.count >= 3 and s.errors > 0
         ][:5]
+        signature = tuple(
+            (s.endpoint, s.count, s.errors, s.p99Latency, s.trend)
+            for s in stats
+        )
+        if signature != self._endpointErrorsSignature or self._endpointErrorsRenderable is None:
+            self._endpointErrorsRenderable = self._endpoint_table(
+                stats, "No endpoints with errors (≥3 reqs)"
+            )
+            self._endpointErrorsSignature = signature
         self._paint(
             "byErrors",
-            self._endpoint_table(stats, "No endpoints with errors (≥3 reqs)"),
+            self._endpointErrorsRenderable,
             "Highest error %",
             "red",
         )

@@ -1,5 +1,5 @@
 from logana.analytics.accumulatorSet import AccumulatorSet
-from logana.output.dashboard import _overview, _weakest_fields
+from logana.output.dashboard import _Glyphs, _overview, _weakest_fields, Dashboard
 from helpers.eventFactory import buildLogEvent, buildQuarantineEntry
 
 
@@ -27,3 +27,37 @@ def test_weakest_fields_sorted_by_known_rate():
     rates = [rate for _, rate in weak]
     assert rates == sorted(rates)
     assert len(weak) == 3
+
+
+def test_glyphsUseUnicodeSparklineWhenEncodingSupportsIt(monkeypatch):
+    class DummyStdout:
+        encoding = "utf-8"
+
+    monkeypatch.setattr("sys.stdout", DummyStdout())
+
+    glyphs = _Glyphs.for_stdout()
+
+    assert glyphs.spark == "▁▂▃▄▅▆▇█"
+
+
+def test_endpointTableUsesRichOverflowForPaths():
+    acc = AccumulatorSet()
+    dashboard = Dashboard(acc)
+    table = dashboard._endpoint_table(
+        [
+            type(
+                "Stat",
+                (),
+                {
+                    "endpoint": "/api/very/long/path/that/should/not/be/manual/truncated",
+                    "count": 10,
+                    "errorRate": 0.2,
+                    "p99Latency": 120.0,
+                    "trend": "STABLE",
+                },
+            )()
+        ],
+        "empty",
+    )
+
+    assert table.columns[0].overflow == "ellipsis"
