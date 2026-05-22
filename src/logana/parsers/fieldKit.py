@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Sequence
-from logana.models.fieldState import FieldState, Absent, isKnown, pickBetterFieldState
+from logana.models.fieldState import FieldState, Absent, Known, isKnown, pickBetterFieldState
 from logana.extractors.timestamp import TimestampExtractor
 from logana.extractors.timestampHunter import huntTimestamp
 from logana.pipeline.timeContext import PipelineTimeContext, defaultTimeContext
@@ -44,6 +44,14 @@ DEFAULT_KEY_MAPPINGS: Dict[str, List[str]] = {
     "logLevel": ["level", "logLevel", "log_level", "severity"],
     "message": ["message", "msg", "log", "text"],
 }
+
+_MILLISECOND_KEY_HINTS = frozenset({
+    "responseTimeMs",
+    "duration_ms",
+    "latency_ms",
+    "time_ms",
+    "response_time_ms",
+})
 
 
 class ParserFieldKit:
@@ -92,6 +100,26 @@ class ParserFieldKit:
                 return data[key]
         return None
 
+    def findMappedKeyValue(
+        self, data: Dict[str, Any], keys: List[str]
+    ) -> Optional[tuple[str, Any]]:
+        for key in keys:
+            if key in data:
+                return key, data[key]
+        return None
+
+    def _extractResponseTimeFromMappedValue(self, key: str, raw: Any) -> FieldState:
+        if raw is None:
+            return Absent()
+
+        if key in _MILLISECOND_KEY_HINTS:
+            try:
+                return Known(float(raw), 0.95, str(raw))
+            except (TypeError, ValueError):
+                pass
+
+        return self.extractField("responseTimeMs", str(raw))
+
     def applyMappedFields(
         self,
         data: Dict[str, Any],
@@ -100,9 +128,16 @@ class ParserFieldKit:
         fields = self.emptyStandardFields()
         for fieldName in STANDARD_FIELD_NAMES:
             aliases = keyMappings.get(fieldName, [])
-            raw = self.findMappedValue(data, aliases)
-            if raw is not None:
-                fields[fieldName] = self.extractField(fieldName, str(raw))
+            mapped = self.findMappedKeyValue(data, aliases)
+            if mapped is not None:
+                rawKey, raw = mapped
+                if fieldName == "responseTimeMs":
+                    fields[fieldName] = self._extractResponseTimeFromMappedValue(
+                        rawKey,
+                        raw,
+                    )
+                else:
+                    fields[fieldName] = self.extractField(fieldName, str(raw))
         return fields
 
     def mergeField(

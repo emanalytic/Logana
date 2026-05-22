@@ -27,6 +27,15 @@ def test_json_parser():
     assert res.fields["responseTimeMs"].value == 142.0
     assert res.fields["logLevel"].value == "INFO"
 
+
+def test_json_parser_reads_duration_ms_as_latency():
+    parser = JsonParser()
+    text = '{"timestamp": "2024-03-15T14:23:01Z", "ip": "192.168.1.42", "method": "GET", "path": "/api/users", "status": 200, "duration_ms": 142, "level": "info", "msg": "Success"}'
+    res = parser.parse(text, 1)
+
+    assert isKnown(res.fields["responseTimeMs"])
+    assert res.fields["responseTimeMs"].value == 142.0
+
 def test_json_parser_accepts_prefixed_payload():
     parser = JsonParser()
     text = 'TIEBREAKER_TAG: {"timestamp": "2024-03-15T14:23:01Z", "logLevel": "ERROR", "message": "Tagged JSON"}'
