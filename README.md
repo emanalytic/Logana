@@ -33,7 +33,7 @@ The report can include:
 A good first run on included data:
 
 ```bash
-poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC
+poetry run logana tests/fixtures/OpenStack_2k.log --log-timezone UTC --format dashboard
 ```
 
 That OpenStack sample is a strong match for this tool: timestamps, HTTP-style paths, status codes, and over a thousand latency samples in one pass.
