@@ -3,6 +3,10 @@ from logana.models.logEvent import LogEvent
 from logana.models.quarantineEntry import QuarantineEntry
 from logana.models.fieldState import Known
 
+
+_LOCALISH_SOURCES = {"configured_local", "syslog_inferred"}
+_UTCISH_SOURCES = {"explicit_offset", "configured_utc", "epoch_utc"}
+
 class FileProfileTracker:
     """Builds a coarse profile of formats and timestamp assumptions in the file."""
 
@@ -31,6 +35,9 @@ class FileProfileTracker:
         parseRate = self.totalEvents / total if total else 0.0
         explicit = self.timestampSources.get("explicit_offset", 0)
         tsTotal = sum(self.timestampSources.values()) or 1
+        localish = sum(self.timestampSources.get(source, 0) for source in _LOCALISH_SOURCES)
+        utcish = sum(self.timestampSources.get(source, 0) for source in _UTCISH_SOURCES)
+        recommendedNaivePolicy = "utc" if utcish > localish else "local"
         return {
             "parseRate": parseRate,
             "formatDistribution": dict(
@@ -38,5 +45,5 @@ class FileProfileTracker:
             ),
             "timestampSources": self.timestampSources,
             "explicitOffsetRate": explicit / tsTotal,
-            "recommendedNaivePolicy": "local",
+            "recommendedNaivePolicy": recommendedNaivePolicy,
         }
