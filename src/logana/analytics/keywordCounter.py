@@ -26,7 +26,7 @@ class KeywordCounter:
                 continue
             self._counts[token] += 1
             if len(self._counts) > self.maxTokens:
-                self._counts.popitem()
+                self._counts = Counter(dict(self._counts.most_common(self.maxTokens)))
 
     def getTop(self, limit: int = 15) -> List[Dict[str, Union[str, int]]]:
         return [
