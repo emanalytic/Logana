@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 from logana.models.fieldState import Known, Unknown, isKnown
 from logana.models.logEvent import LogEvent
